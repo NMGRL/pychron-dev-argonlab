@@ -18,7 +18,7 @@ import hashlib
 import os
 import time
 from datetime import datetime
-from threading import Thread, Lock
+from threading import Thread, Lock, RLock
 
 # ============= enthought library imports =======================
 from apptools.preferences.preference_binding import bind_preference
@@ -111,7 +111,13 @@ class LabspyClient(Loggable):
         if bind:
             self.bind_preferences()
             # self.start()
-        self.session_lock = Lock()
+        # RLock (reentrant): the session-lock decorators (reset_connect /
+        # auto_reset_connect) hold this lock while calling other decorated
+        # methods on the same object -- e.g. add_run() -> add_experiment().
+        # A plain Lock self-deadlocks there, hanging the experiment thread on
+        # the first run of a new experiment (add_experiment is only reached
+        # when the experiment is not yet in the labspy db).
+        self.session_lock = RLock()
 
     def bind_preferences(self):
         self.db.bind_preferences()
