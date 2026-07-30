@@ -26,6 +26,49 @@ from pychron.graph.theme import themed_container_dict
 logger = logging.getLogger(__name__)
 
 
+def _dispose_component_timers(comp):
+    """Fallback teardown for the FigureEditor rebuild orphan-timer leak.
+
+    The old Chaco component dropped on rebuild is not a QObject, so walk the
+    Enable linkage component.window -> window.control to reach the hosting
+    QWidget and stop its child QTimers before the component is abandoned. A
+    running QTimer keeps its owner alive, so stopping it lets the old panel be
+    collected instead of lingering and firing on a dead receiver (the SEGV /
+    KERN_INVALID_ADDRESS class).
+
+    stop() ONLY (deliberately not blockSignals()): at call time the new panel
+    reuses the SAME canvas QWidget, so this may sweep timers the live panel
+    still needs. A stopped QTimer is restartable, so the refresh()/redraw that
+    follows respawns anything required (worst case: a one-frame hiccup).
+    blockSignals(True) is avoided because it mutes permanently and would freeze
+    live redraw/hover on the reused widget -- it is only correct on a true
+    destroy path (tabular_editor.py, right before deleteLater()).
+
+    Best-effort and fully guarded: if the linkage is absent (e.g. old comp
+    already detached, or never drawn) it no-ops, and if it fails to prevent a
+    hang the SEGV still lands in the log for the bench dump.
+    """
+    if comp is None:
+        return
+    try:
+        win = getattr(comp, "window", None)
+        ctrl = getattr(win, "control", None)
+        if ctrl is None:
+            return
+        from pyface.qt.QtCore import QTimer
+
+        stopped = 0
+        for t in ctrl.findChildren(QTimer):
+            try:
+                t.stop()
+                stopped += 1
+            except Exception:
+                pass
+        logger.debug("DISPOSE COMPONENT TIMERS stopped=%d ctrl=%r", stopped, ctrl)
+    except Exception:
+        logger.debug("DISPOSE COMPONENT TIMERS failed", exc_info=True)
+
+
 # from pychron.processing.plotters.graph_panel_info import GraphPanelInfo
 # ============= standard library imports ========================
 # ============= local library imports  ==========================
@@ -94,7 +137,9 @@ class FigureContainer(HasTraits):
         r, c = layout.calculate(n)
         logger.debug(f"Creating component with layout: npanels={n}, rows={r}, cols={c}")
 
+        old_comp = self.component
         comp, r, c = self._component_factory(r, c)
+        _dispose_component_timers(old_comp)
         self.component = comp
         self.rows, self.cols = r, c
         logger.debug(f"Created component: {comp}, rows={r}, cols={c}")

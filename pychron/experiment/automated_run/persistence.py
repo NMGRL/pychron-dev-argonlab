@@ -452,6 +452,11 @@ class AutomatedRunPersister(BasePersister):
 
         self._current_data_frame = path
         frame = dm.new_frame(path)
+        if frame is None:
+            raise IOError(
+                "pre_measurement_save: could not create HDF5 frame at {} "
+                "(new_frame returned None)".format(path)
+            )
 
         attrs = frame.root._v_attrs
         attrs["USER"] = self.per_spec.run_spec.username

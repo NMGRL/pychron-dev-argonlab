@@ -15,13 +15,20 @@
 # ===============================================================================
 """WaitGroup: collection of WaitControls plus a blocking wait coordinator.
 
-After the 2026 rewrite, blocking is implemented directly on top of
-WaitState (pure threading). The Qt event loop is not on the critical
-path, so safety timeouts, faulthandler dumps, and synchronous
-cross-thread calls (`wait=True`) are no longer needed.
+After the 2026 rewrite, the blocking *wait* is implemented directly on
+top of WaitState (pure threading), so the Qt event loop is not on the
+countdown's critical path.
+
+NOTE: synchronous cross-thread UI calls (`wait=True`, e.g.
+`get_wait_control`) DO still depend on the main thread running the
+marshaled callback. If the main thread is starved (a Qt event-loop
+livelock), `done.wait()` would block the calling experiment thread
+forever -- this is the spinning-wheel hang that was observed. Those
+calls now use a safety timeout (`_MAIN_THREAD_INVOKE_TIMEOUT`).
 """
 
 # ============= enthought library imports =======================
+import logging
 from threading import Event, current_thread, main_thread
 from typing import Any as TypingAny, Callable, Optional
 
@@ -30,6 +37,15 @@ from traits.api import Any, HasTraits, List, Property
 # ============= local library imports  ==========================
 from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.core.wait.wait_control import WaitControl
+
+logger = logging.getLogger("WaitGroup")
+
+# Safety timeout for synchronous cross-thread UI calls (wait=True). Without it
+# a starved main thread -- e.g. a QTimer activateTimers() livelock -- makes
+# done.wait() block forever and hangs the calling experiment thread (the
+# observed spinning-wheel hang). Timing out converts a permanent beachball into
+# a logged, recoverable error.
+_MAIN_THREAD_INVOKE_TIMEOUT = 30.0
 
 
 class WaitGroup(HasTraits):
@@ -82,7 +98,13 @@ class WaitGroup(HasTraits):
                 done.set()
 
         invoke_in_main_thread(runner)
-        done.wait()
+        if not done.wait(timeout=_MAIN_THREAD_INVOKE_TIMEOUT):
+            logger.warning(
+                "main-thread call %r timed out after %.0fs; the main thread may "
+                "be starved (Qt event-loop livelock). Returning None.",
+                getattr(func, "__name__", func),
+                _MAIN_THREAD_INVOKE_TIMEOUT,
+            )
         return result.get("value")
 
     # ------------------------------------------------------------------
@@ -94,11 +116,17 @@ class WaitGroup(HasTraits):
 
     def _pop(self, control: Optional[WaitControl] = None) -> None:
         if len(self.controls) > 1:
+            removed = None
             if control:
                 if control in self.controls:
                     self.controls.remove(control)
+                    removed = control
             else:
-                self.controls.pop()
+                removed = self.controls.pop()
+            # Destroy the removed control's poll QTimer so it does not linger
+            # as a child of the QApplication (timer-accumulation leak).
+            if removed is not None:
+                removed.dispose()
             self.active_control = self.controls[-1]
 
     def stop(self) -> None:
@@ -125,11 +153,29 @@ class WaitGroup(HasTraits):
             self.active_control.page_name = page_name
 
     def add_control(self, **kw: TypingAny) -> WaitControl:
+        # Drop+dispose resolved controls before adding a new one so their poll
+        # QTimers don't accumulate on the QApplication across many analyses.
+        self._prune_finished()
         if "page_name" not in kw:
             kw["page_name"] = "Wait {:02d}".format(len(self.controls))
         w = WaitControl(**kw)
         self._invoke_on_main_thread(self._ensure_control, w, wait=True)
         return w
+
+    def _prune_finished(self) -> None:
+        """Remove and dispose controls whose wait has resolved, keeping the
+        active control and at least one control in the list. Bounds both the
+        controls list and the app's QTimer child count."""
+        keep = []
+        for ci in self.controls:
+            if ci is self.active_control or ci.is_active():
+                keep.append(ci)
+            else:
+                ci.dispose()
+        if not keep and self.controls:
+            keep.append(self.controls[-1])
+        if len(keep) != len(self.controls):
+            self.controls = keep
 
     def get_wait_control(self, **kw: TypingAny) -> WaitControl:
         return self._invoke_on_main_thread(self._get_wait_control, wait=True, **kw)

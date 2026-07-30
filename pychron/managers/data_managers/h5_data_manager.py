@@ -128,12 +128,32 @@ class H5DataManager(DataManager):
     def new_frame(self, *args, **kw):
         """ """
         p = self._new_frame_path(*args, **kw)
+        # Close any frame we still hold, plus any pytables handle already open
+        # on this exact path. A retried run reuses its uuid (hence this path);
+        # if the previous attempt errored before close_file(), the handle stays
+        # open and open_file(mode="w") raises ValueError. That used to be
+        # swallowed -> None -> AttributeError ('NoneType' has no 'root') crash
+        # in pre_measurement_save, which halted the experiment.
+        self.close_file()
+        try:
+            import tables
+
+            for h in list(tables.file._open_files.get_handlers_by_name(p)):
+                try:
+                    self.warning("closing stale open HDF5 handle for {}".format(p))
+                    h.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         try:
             self._frame = open_file(p, mode="w")
 
             return self._frame
-        except ValueError:
-            pass
+        except ValueError as e:
+            self.warning("new_frame failed to open {}: {}".format(p, e))
+            return None
 
     def new_group(self, group_name, parent=None, description=""):
         """

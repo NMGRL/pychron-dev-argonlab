@@ -162,6 +162,11 @@ class WaitControl(Loggable):
             )
         )
         state.request_cancel()
+        # Stop the poll timer promptly instead of waiting for the next _poll
+        # tick to notice cancellation. That tick never comes if the main thread
+        # is starved -- the QTimerInfoList::activateTimers() livelock that hung
+        # the app -- so relying on it left poll timers running forever.
+        invoke_in_main_thread(self._stop_polling)
         # Synchronously mirror final state into traits so callers that
         # immediately read .status / .current_time see correct values.
         self._sync_from_state()
@@ -264,6 +269,30 @@ class WaitControl(Loggable):
         timer = self._poll_timer
         if timer is not None and timer.isActive():
             timer.stop()
+
+    def dispose(self) -> None:
+        """Stop and destroy the polling timer. Safe from any thread.
+
+        Call when the control is discarded so its QTimer does not linger as a
+        child of the QApplication. Without this, every WaitControl ever created
+        leaks a 100ms QTimer into the app child list; enough of them saturate
+        QTimerInfoList::activateTimers() on the main thread and starve the Qt
+        event loop -- the observed spinning-wheel hang.
+        """
+        invoke_in_main_thread(self._dispose_polling)
+
+    def _dispose_polling(self) -> None:
+        """Stop, disconnect and delete the poll timer. Main thread only."""
+        timer = self._poll_timer
+        self._poll_timer = None
+        if timer is not None:
+            try:
+                timer.stop()
+                timer.timeout.disconnect(self._poll)
+            except (TypeError, RuntimeError):
+                # already disconnected or C++ side gone
+                pass
+            timer.deleteLater()
 
     def _poll(self) -> None:
         """Tick: read snapshot, update display traits, stop when resolved."""

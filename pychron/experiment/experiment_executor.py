@@ -2513,6 +2513,21 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
         wg = self.wait_group
         wc = self.get_wait_control()
 
+        # get_wait_control() can return None if its synchronous main-thread
+        # roundtrip times out (a starved/wedged main thread). Fall back to a
+        # local WaitControl so the delay still runs instead of crashing on
+        # wc.state inside start_wait. Mirrors pyscript._setup_wait_control.
+        local_wc = False
+        if wc is None:
+            from pychron.core.wait.wait_control import WaitControl
+
+            self.warning(
+                "get_wait_control() returned None (main thread starved?); "
+                "using a local WaitControl for this delay"
+            )
+            wc = WaitControl()
+            local_wc = True
+
         self.debug(
             "executor wait boundary run={} delay={} message={} wait_page={} controls={} thread={}".format(
                 getattr(getattr(self, "measuring_run", None), "runid", None)
@@ -2527,6 +2542,10 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
         self._mark_progress("executor.wait.start", extra={"delay": delay, "message": msg})
         wg.start_wait(wc, duration=delay, message=msg)
         wg.pop(wc)
+        # A local fallback control is not owned by the group; dispose its poll
+        # timer explicitly so it does not leak onto the QApplication.
+        if local_wc:
+            wc.dispose()
         self._mark_progress("executor.wait.end", extra={"delay": delay, "message": msg})
 
     def _set_extract_state(self, state, *args):

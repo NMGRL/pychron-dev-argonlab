@@ -302,6 +302,21 @@ def _handle_bus_error(signum: int, frame) -> None:
 
 def launch(klass):
     """ """
+    # --- M3 diagnostics: enable stdlib faulthandler BEFORE any Qt object
+    # exists, so a native SIGSEGV/SIGABRT/SIGBUS/SIGFPE/SIGILL dumps every
+    # Python thread's C frame to m3_faulthandler.log before the process dies.
+    # Without this a hang->SEGV leaves only a macOS Crash Reporter .ips with no
+    # Python context.  faulthandler.enable() has no runtime cost until a fatal
+    # signal fires; this is NOT install_early() (skips the Qt message handler
+    # and QTimer monkeypatch, which would touch the marshalling hot path).
+    # Idempotent.
+    try:
+        from pychron.core.helpers.m3_diagnostics import install_faulthandler as _m3_faulthandler
+
+        _m3_faulthandler()
+    except Exception as _e:  # pragma: no cover
+        logger.warning("m3_diagnostics faulthandler install failed: %r", _e)
+
     # login protection
     #
     # moving app.run to a compiled object would be more robust

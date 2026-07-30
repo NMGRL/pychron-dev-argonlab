@@ -125,10 +125,16 @@ class PychronLaserManager(EthernetLaserManager):
     # ===============================================================================
     # patterning
     # ===============================================================================
-    def execute_pattern(self, name=None, block=False, duration=None):
+    def execute_pattern(self, name=None, block=False, duration=None, position=None):
         """
         name is either a name of a file
         of a pickled pattern obj
+
+        `position` is accepted for signature compatibility with the pyscript
+        caller (extraction_line_pyscript.execute_pattern) and
+        BaseLaserManager.execute_pattern. This remote manager sends a DoPattern
+        command; the remote laser derives position from the pattern file, so
+        position is not forwarded from here.
         """
         if name:
             self._patterning = True
