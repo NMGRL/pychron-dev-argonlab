@@ -224,6 +224,11 @@ class _TableView(TableView):
     _cut_indices = None
     option_select = False
     drag_move = True
+    # Reentrancy guard for columnResized -> resizeColumnsToContents. Without
+    # it, resizeColumnsToContents() re-emits sectionResized -> columnResized ->
+    # resizeColumnsToContents(), a QHeaderView<->viewport feedback loop that
+    # livelocks the main thread in QTimerInfoList::activateTimers().
+    _is_resizing = False
 
     def __init__(self, editor, layout=None, *args, **kw):
         super(_TableView, self).__init__(editor, *args, **kw)
@@ -401,18 +406,26 @@ class _TableView(TableView):
         This affects the column widths when not using auto-sizing.
         """
         if not self._is_resizing:
-            if self._user_widths is None:
-                self._user_widths = [None] * len(self._editor.adapter.columns)
+            # Set the guard for the whole body: resizeColumnsToContents() below
+            # re-emits sectionResized, which re-enters columnResized. Without
+            # holding the flag the re-entry loops forever (the activateTimers
+            # livelock). Reset in finally so normal user resizes keep working.
+            self._is_resizing = True
             try:
-                self._user_widths[index] = new
-            except IndexError:
-                pass
+                if self._user_widths is None:
+                    self._user_widths = [None] * len(self._editor.adapter.columns)
+                try:
+                    self._user_widths[index] = new
+                except IndexError:
+                    pass
 
-            if (
-                self._editor.factory is not None
-                and not self._editor.factory.auto_resize
-            ):
-                self.resizeColumnsToContents()
+                if (
+                    self._editor.factory is not None
+                    and not self._editor.factory.auto_resize
+                ):
+                    self.resizeColumnsToContents()
+            finally:
+                self._is_resizing = False
 
     def keyPressEvent(self, event):
         # print('asfd', event, event.key(), event.modifiers(), QtGui.QKeySequence('Cmd+N'))
