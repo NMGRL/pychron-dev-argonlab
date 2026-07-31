@@ -405,6 +405,13 @@ class _TableView(TableView):
 
         This affects the column widths when not using auto-sizing.
         """
+        # A hidden table -- a background tab of the analysis view, or an
+        # orphaned old analysis view that was never disposed -- does not need
+        # to react to section resizes. Skipping keeps accumulated off-screen
+        # tables from driving the QHeaderView resize cascade that livelocks the
+        # main thread in QTimerInfoList::activateTimers().
+        if not self.isVisible():
+            return
         if not self._is_resizing:
             # Set the guard for the whole body: resizeColumnsToContents() below
             # re-emits sectionResized, which re-enters columnResized. Without
@@ -459,6 +466,12 @@ class _TableView(TableView):
             self._key_press_hook(event)
 
     def resizeColumnsToContents(self):
+        # Skip for hidden tables (background tabs / orphaned old views): the
+        # column-fit work spawns QHeaderView/QScrollBar resize timers that,
+        # summed across many accumulated off-screen tables, saturate
+        # activateTimers() and peg the main thread at 100% CPU.
+        if not self.isVisible():
+            return
         try:
             super(_TableView, self).resizeColumnsToContents()
         except AttributeError:
