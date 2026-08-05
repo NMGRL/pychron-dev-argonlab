@@ -911,6 +911,9 @@ def install_late(stall_threshold: float = 5.0) -> None:
     install_thread_safe_marshalling()
     install_main_thread_watchdog(stall_threshold=stall_threshold)
     install_safe_event_filter()
+    from pychron.core.helpers.m3_timer_probe import install_timer_probe
+
+    install_timer_probe()
     install_queue_rate_logger()
     # Event tracer is opt-in: it logs one line per Timer event delivered
     # on the main thread, which is verbose.  Enable when hunting a crash
