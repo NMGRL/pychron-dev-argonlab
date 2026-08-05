@@ -67,7 +67,8 @@ def _get_log_path() -> str:
     home = os.path.expanduser("~")
     candidates.extend(
         [
-            os.path.join(home, "Pychron", "logs"),
+            os.path.join(home, "Pychron3", "logs"),
+	    os.path.join(home, "Pychron", "logs"),
             os.path.join(home, ".pychron.0", "logs"),
             home,
         ]
@@ -87,8 +88,8 @@ def _get_log_path() -> str:
 
 def _attach_file_handler() -> None:
     path = _get_log_path()
-    # rotate at 5 MB, keep 5 backups
-    fh = logging.handlers.RotatingFileHandler(path, maxBytes=5 * 1024 * 1024, backupCount=5)
+    # rotate at 50 MB, keep 5 backups <-- extra monitoring until hang bug is resolved
+    fh = logging.handlers.RotatingFileHandler(path, maxBytes=50 * 1024 * 1024, backupCount=5)
     fh.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s %(levelname)s [%(threadName)s] %(message)s")
     fh.setFormatter(fmt)
@@ -490,7 +491,7 @@ def install_event_tracer() -> None:
         trace_path = os.path.join(os.path.dirname(_get_log_path()), "m3_eventtrace.log")
         try:
             fh = _FlushingRotatingHandler(
-                trace_path, maxBytes=5 * 1024 * 1024, backupCount=3
+                trace_path, maxBytes=50 * 1024 * 1024, backupCount=3
             )
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(
@@ -522,11 +523,59 @@ def install_event_tracer() -> None:
             _is_deleted = None
 
     TIMER_EVT = int(QEvent.Timer)
+    # DeferredDelete fires when a QObject is torn down via deleteLater() (the
+    # safe path). Immediate C++ deletes do NOT emit it, so a widget whose
+    # timer later fires on a freed receiver may show NO DeferredDelete line --
+    # that absence is itself the signal (destroyed the unsafe way). We log
+    # these for the table/header/scrollbar/graph classes so the destroy
+    # timestamp can be cross-referenced against the trailing Timer fires in
+    # this same file right before a SIGSEGV.
+    try:
+        DEFERRED_DELETE_EVT = int(QEvent.DeferredDelete)
+    except Exception:
+        DEFERRED_DELETE_EVT = 52
+    _WATCH_DESTROY = (
+        "_TableView",
+        "QHeaderView",
+        "QScrollBar",
+        "QTableView",
+        "QAbstractItemView",
+        "QTreeView",
+        "_AnalysisView",
+        "PlotPanel",
+    )
 
     class _EventTracer(QObject):
         def eventFilter(self, obj, ev):
             try:
-                if int(ev.type()) == TIMER_EVT:
+                et = int(ev.type())
+                if et == DEFERRED_DELETE_EVT:
+                    try:
+                        cls = type(obj).__name__
+                    except Exception:
+                        cls = "?"
+                    if cls in _WATCH_DESTROY or cls.endswith("View"):
+                        oname = ""
+                        try:
+                            oname = obj.objectName() or ""
+                        except Exception:
+                            pass
+                        pcls = ""
+                        try:
+                            p = obj.parent()
+                            if p is not None:
+                                pcls = type(p).__name__
+                        except Exception:
+                            pcls = "?"
+                        trace_logger.debug(
+                            "DeferredDelete cls=%s pyid=0x%x name=%s parent=%s",
+                            cls,
+                            id(obj),
+                            oname,
+                            pcls,
+                        )
+                    return False
+                if et == TIMER_EVT:
                     try:
                         tid = ev.timerId()
                     except Exception:
