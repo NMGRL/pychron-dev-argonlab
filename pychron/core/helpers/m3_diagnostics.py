@@ -332,12 +332,26 @@ _watchdog: _Watchdog | None = None
 def _on_main_thread() -> bool:
     return threading.current_thread() is threading.main_thread()
 
+_marshalled_timers = []
 
 def _marshal(fn, *args, **kwargs):
-    """Run fn on the main thread (deferred).  Returns None synchronously."""
+    """Run fn on the main thread (deferred).  Returns None synchronously.
+
+    Retains fn's return value: pyface BaseTimer.perform() calls stop() from 
+    inside its own callback, dropping the timer's only other strong reference,
+    so without this the destructor runs while Qt is still dispatching it.
+    """
     from pychron.core.ui.gui import invoke_in_main_thread
 
-    invoke_in_main_thread(fn, *args, **kwargs)
+    def _run():
+        result = fn(*args, **kwargs)
+        if result is not None:
+            _marshalled_timers.append(result)
+            if len(_marshalled_timers) > 64:
+                del _marshalled_timers[0]
+        return result
+
+    invoke_in_main_thread(_run)
     return None
 
 
