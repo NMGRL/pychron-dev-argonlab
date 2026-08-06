@@ -89,4 +89,4 @@ def install_timer_probe() -> None:
     BaseTimer.perform = _patched_perform
     _PROBE_INSTALLED = True
     _log.info("timer probe installed on BaseTimer.perform")
-PROBEEOF
+
