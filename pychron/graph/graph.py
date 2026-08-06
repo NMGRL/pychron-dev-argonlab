@@ -1014,7 +1014,7 @@ class Graph(ContextMenuMixin):
 
         if not self._redraw_pending:
             self._redraw_pending = True
-            do_after_timer(0, self._execute_pending_redraw)
+            self._redraw_timer = do_after_timer(0, self._execute_pending_redraw)
 
     def get_next_color(self, exclude=None, plotid=0):
         cg = self.color_generators[plotid]
