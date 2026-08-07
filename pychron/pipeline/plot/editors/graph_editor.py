@@ -149,6 +149,7 @@ class GraphEditor(BaseEditor):
                 self.request_refresh()
 
     _refresh_pending = False
+    _refresh_timers = None
     _refresh_force_pending = False
 
     def request_refresh(self, force: bool = False) -> None:
@@ -163,7 +164,12 @@ class GraphEditor(BaseEditor):
             return
         self._refresh_pending = True
         try:
-            do_after_timer(_REFRESH_DEBOUNCE_MS, self._fire_refresh)
+            t = do_after_timer(_REFRESH_DEBOUNCE_MS, self._fire_refresh)
+            if self._refresh_timers is None:
+                self._refresh_timers = []
+            self._refresh_timers.append(t)
+            if len(self._refresh_timers) > 8:
+                del self._refresh_timers[0]
         except Exception:
             # If the timer cannot be scheduled (e.g. no QApplication yet),
             # fall back to immediate fire so we never silently swallow a
