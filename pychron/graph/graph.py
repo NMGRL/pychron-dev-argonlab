@@ -205,6 +205,7 @@ class Graph(ContextMenuMixin):
         """ """
         super(Graph, self).__init__(*args, **kw)
         self._redraw_pending = False
+        self._redraw_timers = []
         self._disposed = False
         self.clear()
 
@@ -1014,7 +1015,9 @@ class Graph(ContextMenuMixin):
 
         if not self._redraw_pending:
             self._redraw_pending = True
-            self._redraw_timer = do_after_timer(0, self._execute_pending_redraw)
+            self._redraw_timers.append(do_after_timer(0, self._execute_pending_redraw))
+            if len(self._redraw_timers) > 8:
+                del self._redraw_timers[0]
 
     def get_next_color(self, exclude=None, plotid=0):
         cg = self.color_generators[plotid]
