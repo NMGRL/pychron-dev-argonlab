@@ -73,6 +73,7 @@ class ScanManager(StreamGraphManager):
 
     detector = Property(Instance(BaseDetector), depends_on="_detector")
     _detector = Str
+    _retained_timers = None
 
     magnet = DelegatesTo("spectrometer")
     source = DelegatesTo("spectrometer")
@@ -411,6 +412,13 @@ class ScanManager(StreamGraphManager):
         self._consuming = False
         self.record_data_manager.close_file()
 
+    def _retain_timer(self, t):
+        if self._retained_timers is None:
+            self._retained_timers = []
+        self._retained_timers.append(t)
+        if len(self._retained_timers) > 8:
+            del self._retained_timers[0]
+
     def _check_detector_protection(self, prev, is_detector):
         """
         return True if magnet move should be aborted
@@ -454,9 +462,13 @@ class ScanManager(StreamGraphManager):
                                 )
                             )
                             if is_detector:
-                                do_later(self.trait_set, detector=prev)
+                                self._retain_timer(
+                                    do_later(self.trait_set, detector=prev)
+                                ) 
                             else:
-                                do_later(self.trait_set, isotope=prev)
+                                self._retain_timer(
+                                    do_later(self.trait_set, isotope=prev)
+                                )
 
                             return True
 

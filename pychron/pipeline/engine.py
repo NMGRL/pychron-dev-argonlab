@@ -336,6 +336,7 @@ class PipelineEngine(Loggable):
     def __init__(self, *args, **kw):
         super(PipelineEngine, self).__init__(*args, **kw)
         self._confirmation_cache = {}
+        self._retained_timers = []
         bind_preference(
             self, "use_arar_calculations", "pychron.pipeline.use_arar_calculations"
         )
@@ -1313,7 +1314,10 @@ class PipelineEngine(Loggable):
         self._set_template(name)
 
         self.pipeline.nodes[0].unknowns = [ai for gi in groups for ai in gi.analyses]
-        do_later(self.trait_set, run_needed=True)
+        t = do_later(self.trait_set, run_needed=True)
+        self._retained_timers.append(t)
+        if len(self._retained_timers) > 8:
+            del self._retained_timers[0]
 
     # handlers
     @on_trait_change("active_editor")
