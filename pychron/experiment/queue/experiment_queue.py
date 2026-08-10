@@ -98,6 +98,7 @@ class ExperimentQueue(BaseExperimentQueue, SelectSameMixin):
 
     _auto_save_time = 0
     _temp_analysis = None
+    _retained_timers = None   
 
     def auto_save(self):
         if self._auto_save_time and time.time() - self._auto_save_time < 0.25:
@@ -458,10 +459,15 @@ class ExperimentQueue(BaseExperimentQueue, SelectSameMixin):
             self.executed_runs.append(run)
 
             idx = len(self.executed_runs) - 1
-            invoke_in_main_thread(
-                do_later, lambda: self.trait_set(executed_runs_scroll_to_row=idx)
-            )
-            # self.debug('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ set ex scroll to {}'.format(idx))
+            def _schedule_scroll():
+                t = do_later(lambda: self.trait_set(executed_runs_scroll_to_row=idx))
+                if self._retained_timers is None:
+                    self._retained_timers = []
+                self._retained_timers.append(t)
+                if len(self._retained_timers) > 8: 
+                    del self._retained_timers[0]
+           
+            invoke_in_main_thread(_schedule_scroll)
         else:
             self.debug("Problem removing {}".format(aid))
 
