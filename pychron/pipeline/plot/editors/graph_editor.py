@@ -151,7 +151,16 @@ class GraphEditor(BaseEditor):
     _refresh_pending = False
     _refresh_timers = None
     _refresh_force_pending = False
+    _retained_timers = None
 
+
+    def _retain_timer(self, t):
+        if self._retained_timers is None:
+            self._retained_timers = []
+        self._retained_timers.append(t)
+        if len(self._retained_timers) > 8:
+            del self._retained_timers[0]
+    
     def request_refresh(self, force: bool = False) -> None:
         # Coalesce bursts: keep the strongest force flag seen during the
         # debounce window, fire refresh_needed once when it expires.  Any

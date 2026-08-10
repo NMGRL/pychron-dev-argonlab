@@ -113,7 +113,7 @@ class SeriesEditor(FigureEditor):
                         self._handle_reg, "regression_results", remove=True
                     )
 
-        do_after(1, self.trait_set, statistics=ss)
+        self._retain_timer(do_after(1, self.trait_set, statistics=ss))
 
     def _handle_reg(self, new):
         self.update_needed = True

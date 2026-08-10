@@ -99,7 +99,14 @@ class IdeogramEditor(InterpretedAgeEditor):
                 t = RValuesTable(ags)
                 rvs.append(t)
 
-        do_later(self.trait_set, results_tables=rs, ttest_tables=ts, rvalues_tables=rvs)
+        self._retain_timer(
+            do_later(
+                self.trait_set, 
+                results_tables=rs, 
+                ttest_tables=ts, 
+                rvalues_tables=rvs,
+            )
+        )
 
     def plot_interpreted_ages(self, iages):
         def construct(a):
