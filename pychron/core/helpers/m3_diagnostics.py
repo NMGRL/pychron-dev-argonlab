@@ -364,42 +364,6 @@ def install_thread_safe_marshalling() -> None:
 
     patched = []
 
-    # --- pyface.timer.do_later.do_after / do_later ----------------------------
-    try:
-        import pyface.timer.do_later as _dl
-
-        if hasattr(_dl, "do_after"):
-            _orig_do_after = _dl.do_after
-
-            def _safe_do_after(ms, callable_, *a, **kw):
-                if _on_main_thread():
-                    return _orig_do_after(ms, callable_, *a, **kw)
-                _log.debug(
-                    "marshalling do_after from %s",
-                    threading.current_thread().name,
-                )
-                return _marshal(_orig_do_after, ms, callable_, *a, **kw)
-
-            _dl.do_after = _safe_do_after
-            patched.append("pyface.timer.do_later.do_after")
-
-        if hasattr(_dl, "do_later"):
-            _orig_do_later = _dl.do_later
-
-            def _safe_do_later(callable_, *a, **kw):
-                if _on_main_thread():
-                    return _orig_do_later(callable_, *a, **kw)
-                _log.debug(
-                    "marshalling do_later from %s",
-                    threading.current_thread().name,
-                )
-                return _marshal(_orig_do_later, callable_, *a, **kw)
-
-            _dl.do_later = _safe_do_later
-            patched.append("pyface.timer.do_later.do_later")
-    except Exception as e:  # pragma: no cover
-        _log.error("marshalling: pyface.timer.do_later patch failed: %s", e)
-
     # --- pyface.timer.i_timer.CallbackTimer.single_shot -----------------------
     # do_after_timer routes through CallbackTimer.single_shot, but other
     # call sites (e.g. ITimer.single_shot used by traitsui editors) also do.
