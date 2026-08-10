@@ -136,6 +136,7 @@ class ExtractionLineManager(Manager, Consoleable):
     _monitoring_valve_status = False
     _hardware_update_timer = None
     _initial_canvas_sync_timer = None
+    _retired_timers = None     
 
     canvas_editor = Instance(CanvasEditor, ())
     logging_level = Enum(LOG_LEVEL_NAMES)
@@ -1020,6 +1021,11 @@ class ExtractionLineManager(Manager, Consoleable):
     ) -> TypingAny:
         timer = getattr(self, attr, None)
         if timer is not None:
+            if self._retired_timers is None:
+                self._retired_timers = []
+            self._retired_timers.append(timer)
+            if len(self._retired_timers) > 8:
+                del self._retired_timers[0]
             cancel = getattr(timer, "cancel", None)
             if cancel is not None:
                 try:
@@ -1325,7 +1331,6 @@ class ExtractionLineManager(Manager, Consoleable):
 
     @on_trait_change("use_network,network:inherit_state")
     def _sync_initial_canvas_state(self) -> None:
-        self._initial_canvas_sync_timer = None
         for c in self.canvases:
             if getattr(c.canvas2D, "control", None) is None:
                 self._schedule_initial_canvas_sync(100)
