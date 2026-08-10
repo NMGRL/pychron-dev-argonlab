@@ -15,7 +15,6 @@
 # ===============================================================================
 # ============= enthought library imports =======================
 import logging
-import signal
 import sys
 from operator import attrgetter
 
@@ -276,15 +275,6 @@ def app_factory(klass):
     return app
 
 
-def _handle_bus_error(signum: int, frame) -> None:
-    """Handle bus error (SIGBUS) by gracefully shutting down."""
-    logger.critical(
-        "Bus error signal received. Attempting graceful shutdown.",
-        extra={"threadName_": "SignalHandler"},
-    )
-    sys.exit(1)
-
-
 def launch(klass):
     """ """
     # --- M3 diagnostics: enable stdlib faulthandler BEFORE any Qt object
@@ -313,10 +303,6 @@ def launch(klass):
     #     if not check_login(fp.read()):
     #         logger.critical('Login failed')
     #         return
-
-    # Register signal handler for SIGBUS (bus error, signal 10) to gracefully quit
-    # instead of crashing
-    signal.signal(signal.SIGBUS, _handle_bus_error)
 
     app = app_factory(klass)
     try:
