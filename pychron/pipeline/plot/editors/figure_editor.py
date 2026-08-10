@@ -55,15 +55,6 @@ def _track_rebuild() -> tuple[int, int]:
         return _REBUILD_COUNT, _REBUILD_WINDOW_HITS
 
 
-def _timer_census(tag):
-    from pyface.qt.QtCore import QTimer, QCoreApplication
-    app = QCoreApplication.instance()
-    if app is not None:
-        timers = app.findChildren(QTimer)
-        active = [t for t in timers if t.isActive()]
-        logger.debug("TIMER CENSUS [%s] total=%d active=%d ids=%s", tag, len(timers), len(active), sorted(hex(id(t)) for t in active))
-
-
 class FigureEditor(GraphEditor):
     references = List
     # save_required = Bool
@@ -126,7 +117,6 @@ class FigureEditor(GraphEditor):
 
     def _component_factory(self) -> TypingAny:
         total, burst = _track_rebuild()
-        _timer_census("total=%d" % total)
         t0 = time.monotonic()
         logger.debug(
             "FigureEditor._component_factory() start total=%d burst_in_%0.1fs=%d",
