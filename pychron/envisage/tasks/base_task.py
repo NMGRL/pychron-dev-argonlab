@@ -159,6 +159,14 @@ class TaskGroup(Group):
 
 class BaseTask(Task, Loggable, PreferenceMixin):
     _full_window = False
+    _retained_timers = None
+
+    def _retain_timer(self, t):
+        if self._retained_timers is None:
+            self._retained_timers = []
+        self._retained_timers.append(t)
+        if len(self._retained_timers) > 8:
+            del self._retained_timers[0]
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -217,7 +225,7 @@ class BaseTask(Task, Loggable, PreferenceMixin):
 
         if p:
             # self.debug('$$$$$$$$$$$$$ show pane {}'.format(p.id))
-            invoke_in_main_thread(do_later, _show)
+            invoke_in_main_thread(lambda: self._retain_timer(do_later(_show)))
 
     def _menu_bar_default(self):
         view_menu = SMenu(*self._view_groups(), id="view.menu", name="&View")
@@ -425,7 +433,7 @@ class BaseExtractionLineTask(BaseManagerTask):
         self.debug("window opened")
         man = self._get_el_manager()
         if man:
-            do_after(1000, man.activate)
+            self._retain_timer(do_after(1000, man.activate))
 
 
 class BaseHardwareTask(BaseManagerTask):
