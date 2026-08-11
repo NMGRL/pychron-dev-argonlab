@@ -156,12 +156,12 @@ class ItemDelegate(_ItemDelegate):
     # print 'asdf', painter, option, rect, pixmap
 
 
-def _drain_pending_qt_events(widget):
-    """Stop child QTimers and remove queued QEvent::Timer events for
-    `widget` and its children. Call before deleteLater() to prevent
-    dying-receiver UAF when timer events fire after C++ destruction
-    (KERN_INVALID_ADDRESS in QCoreApplication::notifyInternal2 on
-    Apple Silicon)."""
+def _silence_and_release_widget(widget):
+    """
+    Release input grabs and silences the scroll bars before the widget is
+    destroyed. Call before deleteLater().    
+    """
+
     try:
         try:
             widget.releaseMouse()
@@ -177,29 +177,6 @@ def _drain_pending_qt_events(widget):
                 if sb is not None:
                     sb.setSliderDown(False)
                     sb.blockSignals(True)
-            except Exception:
-                pass
-        try:
-            for t in widget.findChildren(QtCore.QTimer):
-                try:
-                    t.stop()
-                    t.blockSignals(True)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        app = QApplication.instance()
-        if app is not None:
-            try:
-                app.removePostedEvents(widget, QtCore.QEvent.Timer)
-            except Exception:
-                pass
-            try:
-                for ch in widget.findChildren(QtCore.QObject):
-                    try:
-                        app.removePostedEvents(ch, QtCore.QEvent.Timer)
-                    except Exception:
-                        pass
             except Exception:
                 pass
     except Exception:
@@ -305,7 +282,7 @@ class _TableView(TableView):
         # but child QTimers + scroll-bar auto-repeat timers can still
         # fire into the freed widget in that gap. Stop child timers and
         # purge already-posted Qt Timer events before deferring delete.
-        _drain_pending_qt_events(self)
+        _silence_and_release_widget(self)
         try:
             self.deleteLater()
         except Exception:
@@ -932,7 +909,7 @@ class _TabularEditor(qtTabularEditor):
         # not dispatch into a freed receiver.
         ctrl = self.control
         if ctrl is not None:
-            _drain_pending_qt_events(ctrl)
+            _silence_and_release_widget(ctrl)
             try:
                 ctrl.deleteLater()
             except Exception:
