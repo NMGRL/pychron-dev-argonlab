@@ -19,6 +19,7 @@
 from pickle import dumps
 
 import six
+import logging
 
 from pyface.qt import QtCore, QtGui
 from pyface.qt.QtGui import QHeaderView, QApplication
@@ -50,6 +51,9 @@ from traitsui.qt.tabular_model import TabularModel, tabular_mime_type
 from pychron.core.helpers.color_utils import coerce_qcolor
 from pychron.core.helpers.ctx_managers import no_update
 from pychron.core.helpers.traitsui_shortcuts import okcancel_view
+
+_RETIRED_WIDGETS = []
+_RETIRED_MAX = 8
 
 
 class myTabularEditor(TabularEditor):
@@ -904,14 +908,24 @@ class _TabularEditor(qtTabularEditor):
                         self.control.setColumnWidth(idx, v)
 
     def dispose(self):
-        # See _TableView.closeEvent: drain pending Qt Timer events and
-        # stop child QTimers before deleteLater() so queued events do
-        # not dispatch into a freed receiver.
+        logging.getLogger("pychron.m3_diag").debug(
+            "TABULAR DISPOSE pyid=0x%x ctrl=%s", id(self), self.control is not None
+        )
+        
+        # Retire the widget instead of deleting it: reparent it out of the
+        # tree (setParent transfers ownership to Python) and hold it for
+        # _RETIRED_MAX rebuilds, so no destruction lands inside an in-flight
+        # activateTimers pass. Eviction deletes the oldest, by then quiescent.
+       
         ctrl = self.control
         if ctrl is not None:
             _silence_and_release_widget(ctrl)
             try:
-                ctrl.deleteLater()
+                ctrl.hide()
+                ctrl.setParent(None)
+                _RETIRED_WIDGETS.append(ctrl)
+                while len(_RETIRED_WIDGETS) > _RETIRED_MAX:
+                    _RETIRED_WIDGETS.pop(0).deleteLater()
             except Exception:
                 pass
         super(_TabularEditor, self).dispose()
