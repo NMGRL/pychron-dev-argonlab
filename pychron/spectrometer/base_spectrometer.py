@@ -747,12 +747,13 @@ class BaseSpectrometer(SpectrometerDevice):
         elif self._prev_signals is not None:
             # Check that arrays have compatible shapes before comparison
             if len(self._prev_signals) != len(signals):
-                self.debug(
+                self.warning(
                     "Signal array size mismatch. current={}, previous={}. "
                     "Resetting baseline.".format(len(signals), len(self._prev_signals))
                 )
                 self._no_intensity_change_cnt = 0
                 self._prev_signals = None
+                return 
             else:
                 try:
                     test = (signals == self._prev_signals).all()
