@@ -51,6 +51,7 @@ from traitsui.qt.tabular_model import TabularModel, tabular_mime_type
 from pychron.core.helpers.color_utils import coerce_qcolor
 from pychron.core.helpers.ctx_managers import no_update
 from pychron.core.helpers.traitsui_shortcuts import okcancel_view
+from pychron.core.helpers.m3_diagnostics import cpp_addr
 
 _RETIRED_WIDGETS = []
 _RETIRED_MAX = 8
@@ -255,22 +256,21 @@ class _TableView(TableView):
         # DIAGNOSTIC (m3 segfault hunt): log the exact moment + Python call
         # stack when this view's C++ object is destroyed, into the same
         # m3_eventtrace.log that records Timer deliveries. Correlate a
-        # "TableView DESTROYED pyid=0x..." line with a later
-        # "Timer cls=_TableView pyid=0x..." for the same pyid to catch the
+        # "TableView DESTROYED cppid=0x..." line with a later
+        # "Timer cls=_TableView cppid=0x..." for the same cppid to catch the
         # use-after-free. If the destroy stack shows only the Qt event loop
         # (no pychron frames), the delete is a pure C++ parent cascade; if it
         # shows a dispose/clear path, that is the culprit to guard.
         try:
             import logging as _logging
             import traceback as _traceback
-
-            _tv_pyid = id(self)
+            _tv_pyid = cpp_addr(self)
             _tv_trace_logger = _logging.getLogger("pychron.m3_diag.eventtrace")
 
             def _log_tableview_destroyed(*_a, _pyid=_tv_pyid, _lg=_tv_trace_logger):
                 try:
                     _lg.debug(
-                        "TableView DESTROYED pyid=0x%x stack=\n%s",
+                        "TableView DESTROYED cppid=0x%x stack=\n%s",
                         _pyid,
                         "".join(_traceback.format_stack()[-10:]),
                     )
@@ -909,7 +909,9 @@ class _TabularEditor(qtTabularEditor):
 
     def dispose(self):
         logging.getLogger("pychron.m3_diag").debug(
-            "TABULAR DISPOSE pyid=0x%x ctrl=%s", id(self), self.control is not None
+            "TABULAR DISPOSE pyid=0x%x ctrl_cppid=0x%x",
+            id(self),
+            cpp_addr(self.control) if self.control is not None else 0,
         )
         
         # Retire the widget instead of deleting it: reparent it out of the

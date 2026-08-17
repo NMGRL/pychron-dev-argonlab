@@ -26,6 +26,20 @@ import sys
 import threading
 import time
 import traceback
+try: 
+    from PyQt5 import sip as _sip
+except ImportError:
+    import sip as _sip
+
+
+def cpp_addr(obj):
+    """C++ address of a sip-wrapped QObject to see what process is 
+    crashing Pychron on errant Tableview disposals"""
+    try: 
+        return _sip.unwrapinstance(obj)
+    except Exception:
+        return 0
+
 
 _INSTALLED = False
 _WATCHDOG_INSTALLED = False
@@ -609,9 +623,9 @@ def install_event_tracer() -> None:
                         except Exception:
                             pass
                     trace_logger.debug(
-                        "Timer cls=%s pyid=0x%x qtid=%d%s%s",
+                        "Timer cls=%s cppid=0x%x qtid=%d%s%s",
                         cls,
-                        id(obj),
+                        cpp_addr(obj),
                         tid,
                         extra,
                         dead,
