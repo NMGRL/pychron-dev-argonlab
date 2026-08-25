@@ -1,0 +1,117 @@
+<?xml version='1.0' encoding='ASCII'?>
+<root>
+  <globals>
+    <use_ipc>False</use_ipc>
+    <ignore_initialization_warnings>False</ignore_initialization_warnings>
+    <multi_user>True</multi_user>
+    <use_startup_tests>False</use_startup_tests>
+    <ignore_initialization_questions>False</ignore_initialization_questions>
+    <dashboard_simulation>False</dashboard_simulation>
+    <experiment_debug>True</experiment_debug>
+    <communication_simulation>True</communication_simulation>
+    <ignore_initialization_required>False</ignore_initialization_required>
+    <ignore_connection_warnings>True</ignore_connection_warnings>
+    <pipeline_debug>False</pipeline_debug>
+    <laser_version>1</laser_version>
+    </globals>
+  <plugins>
+    <general>
+      <plugin enabled="true">Experiment
+                <mode>client</mode>
+        </plugin>
+      <plugin enabled="false">Database</plugin>
+      <plugin enabled="true">PyScript</plugin>
+      <plugin enabled="true">Entry</plugin>
+      <plugin enabled="false">Loading</plugin>
+      <plugin enabled="false">Processing</plugin>
+      <plugin enabled="true">ArArConstants</plugin>
+      <plugin enabled="false">MassSpec</plugin>
+      <plugin enabled="true">DVC</plugin>
+      <plugin enabled="true">LocalGit</plugin>
+      <plugin enabled="false">GoogleCalendar</plugin>
+      <plugin enabled="true">Pipeline</plugin>
+      <plugin enabled="false">LabspyClient</plugin>
+      <plugin enabled="false">Update</plugin>
+      </general>
+    <hardware>
+      <plugin enabled="false">ExternalPipette
+                <device enabled="true">controller</device>
+        </plugin>
+      <plugin enabled="true">ReplayHelixSpectrometer
+                <!--
+<device enabled="true">spectrometer_microcontroller
+                    <klass>HelixController</klass>
+                </device>
+ -->
+        </plugin>
+      <plugin enabled="true">ClientExtractionLine
+                <runner>
+          <communications>
+            <!-- <host>129.138.12.153</host> -->
+            <host>127.0.0.1</host>
+            <port>1061</port>
+            <kind>tcp</kind>
+            </communications>
+          </runner>
+        <manager enabled="true">switch_manager
+                    <device enabled="true">switch_controller</device>
+          </manager>
+        <device enabled="false">analog_power_meter
+                    <required>false</required>
+          </device>
+        <manager enabled="false">multiplexer_manager
+                    <device enabled="true">agilent_multiplexer </device>
+          </manager>
+        </plugin>
+      <plugin enabled="false">FusionsUV
+                <klass>PychronUVLaserManager</klass>
+        <mode>client</mode>
+        <communications>
+          <host>127.0.0.1</host>
+          <port>1068</port>
+          <kind>UDP</kind>
+          </communications>
+        </plugin>
+      <plugin enabled="false">FusionsCO2
+                <mode>client</mode>
+        <communications>500
+                    <host>127.0.0.1</host>
+          <port>1063</port>
+          <kind>TCP</kind>
+          <use_end>True</use_end>
+          </communications>
+        </plugin>
+      <plugin enabled="true">FusionsDiode
+                <mode>client</mode>
+        <communications>
+          <host>127.0.0.1</host>
+          <!-- <host>129.138.12.134</host> -->
+          <!--                     <port>1068</port> -->
+          <port>8000</port>
+          <kind>TCP</kind>
+          <use_end>True</use_end>
+          <!--                     <message_frame>L4,-,C4</message_frame> -->
+          </communications>
+        </plugin>
+      <plugin enabled="false">NMGRLFurnace
+        <device enabled="true">camera</device>
+        <device enabled="false">dumper</device>
+        <device enabled="false">funnel</device>
+        <device enabled="true">controller</device>
+        <manager enabled="true">switch_manager
+          <device enabled="true">switch_controller</device>
+          </manager>
+        <manager enabled="true">stage_manager
+          <device enabled="true">feeder</device>
+          </manager>
+        </plugin>
+      </hardware>
+    <data> </data>
+    <social>
+      <plugin enabled="false">Email</plugin>
+      <plugin enabled="false">Twitter</plugin>
+      <plugin enabled="false">GoogleCalendar</plugin>
+      </social>
+    </plugins>
+  </root>
+

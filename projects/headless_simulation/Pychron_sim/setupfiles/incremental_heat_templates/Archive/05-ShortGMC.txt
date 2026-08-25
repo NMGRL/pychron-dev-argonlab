@@ -1,0 +1,6 @@
+value,units,duration,cleanup,beam_diameter
+1.6,watts,40.0,60.0
+3.0,watts,40.0,60.0
+7.0,watts,40.0,60.0
+10.0,watts,40.0,60.0
+15.0,watts,40.0,60.0

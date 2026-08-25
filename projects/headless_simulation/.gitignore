@@ -1,0 +1,15 @@
+.DS_Store
+
+# Generated/runtime sim environment — data, logs, appdata; not source
+Pychron_sim/.appdata
+Pychron_sim/data/
+Pychron_sim/logs
+Pychron_sim/setupfiles/spectrometer/_mftable_archive/
+Pychron_sim/setupfiles/spectrometer/felix_mftable_archive/
+Pychron_sim/setupfiles/client_secret.json
+
+# Pulled production reference snapshot — read-only, never edited, not source
+hornblende_snapshot/
+
+# local machine permission settings
+.claude/settings.local.json

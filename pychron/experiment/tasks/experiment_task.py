@@ -27,6 +27,7 @@ from traits.api import on_trait_change, Bool, Instance, Event
 
 from pychron.core.helpers.filetools import add_extension, backup
 from pychron.core.helpers.strtools import to_bool
+from pychron.core.ui.preference_binding import color_bind_preference
 from pychron.envisage.tasks.editor_task import EditorTask
 from pychron.envisage.tasks.pane_helpers import ConsolePane
 from pychron.envisage.tasks.wait_pane import WaitPane
@@ -206,6 +207,9 @@ class ExperimentEditorTask(EditorTask):
 
         # color_bind_preference(self, 'bgcolor', 'pychron.experiment.bg_color')
         # color_bind_preference(self, 'even_bgcolor', 'pychron.experiment.even_bg_color')
+        color_bind_preference(self.manager.executor, "signal_color", "pychron.experiment.signal_color")
+        color_bind_preference(self.manager.executor, "sniff_color", "pychron.experiment.sniff_color")
+        color_bind_preference(self.manager.executor, "baseline_color", "pychron.experiment.baseline_color")
 
     # ===============================================================================
     # tasks protocol

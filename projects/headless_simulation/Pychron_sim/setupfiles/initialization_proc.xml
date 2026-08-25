@@ -1,0 +1,24 @@
+<root>
+  <globals>
+    <use_ipc>true</use_ipc>
+    <ignore_initialization_warnings>true</ignore_initialization_warnings>
+    <multi_user>True</multi_user>
+  </globals>
+  <plugins>
+    <general>
+      <plugin enabled="true">Database</plugin>
+      <plugin enabled="true">PyScript</plugin>
+      <plugin enabled="true">Entry</plugin>
+      <plugin enabled="true">ArArConstants</plugin>
+      <plugin enabled="true">Processing</plugin>
+    </general>
+    <hardware>
+    </hardware>
+    <data>
+    </data>
+    <social>
+      <plugin enabled="false">Email</plugin>
+      <plugin enabled="false">Twitter</plugin>
+    </social>
+  </plugins>
+</root>

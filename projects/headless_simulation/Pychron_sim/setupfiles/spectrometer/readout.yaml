@@ -1,0 +1,69 @@
+-
+  - name: HV
+    min: 0
+    max: 10
+    compare: False
+  - name: ElectronEnergy
+    min: 53
+    max: 153
+    compare: False
+  - name: YSymmetry
+    min: -100
+    max: 100
+    compare: True
+  - name: ExtractionSymmetry
+    min: -100
+    max: 100
+    compare: True
+  - name: ExtractionFocus
+    min: 0
+    max: 100
+    compare: True
+  - name: IonRepeller
+    min: -22.5
+    max: 53.4
+    compare: True
+  - name: ExtractionLens
+    min: 0
+    max: 100
+    compare: True
+  - name: Flatapole
+    min: 0
+    max: 100
+    compare: True
+    use_word: False
+  - name: RotationQuad
+    min: 0
+    max: 100
+    compare: True
+    use_word: False
+  - name: VerticalDeflectionN
+    min: 0
+    max: 100
+    compare: True
+    use_word: False
+  - name: VerticalDeflectionS
+    min: 0
+    max: 100
+    compare: True
+    use_word: False
+    
+-
+  - name: H2
+    compare: False
+    enabled: False
+  - name: H1
+    compare: False
+    enabled: False
+  - name: AX
+    compare: False
+    enabled: False  
+  - name: L1
+    compare: False
+    enabled: False    
+  - name: L2
+    compare: False
+    enabled: False    
+  - name: CDD
+    compare: False
+    enabled: False    

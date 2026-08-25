@@ -3116,6 +3116,9 @@ anaylsis_type={}
         if hasattr(self.spectrometer_manager.spectrometer, "trigger_acq"):
             m.trait_set(trigger=self.spectrometer_manager.spectrometer.trigger_acq)
 
+        if hasattr(self.spectrometer_manager.spectrometer, "set_replay_context"):
+            self.spectrometer_manager.spectrometer.set_replay_context(grpname, starttime)
+
         if self.plot_panel:
             self.plot_panel.integration_time = self._integration_seconds
             self.plot_panel.set_ncounts(ncounts)

@@ -1,0 +1,44 @@
+switches:
+  FF: TS
+  FE: BS
+  FG: G
+rules:
+  TS_O:
+    #- funnel_up
+    - no_motion
+    - no_dump
+  TS_C:
+    #- funnel_up
+    - no_motion
+    - no_dump
+  G_O:
+    #- funnel_up
+    - no_motion
+    - no_dump
+  G_C:
+    #- funnel_up
+    - no_motion
+    - no_dump
+  BS_O:
+    #- funnel_up
+    - no_motion
+    - no_dump
+  BS_C:
+    #- funnel_up
+    - no_motion
+    - no_dump
+  FD:
+    - TS_O
+    - G_O
+    - BS_O
+    - no_motion
+    - no_dump
+  FU:
+    - no_motion
+    - no_dump
+  AM:
+    - TS_O
+    - G_O
+    - BS_O
+    #- funnel_down
+    - no_motion

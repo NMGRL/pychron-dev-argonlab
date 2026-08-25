@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import os
 import time
+import random
 
 from numpy import array, argmin
 from traits.api import Int, Property, List, Str, DelegatesTo, Bool, Float
@@ -528,9 +529,9 @@ class ThermoSpectrometer(BaseSpectrometer):
         return x
 
     def _get_simulation_data(self):
-        signals = [1, 100, 3, 0.01, 0.01, 0.01, 38, 38.5]  # + random(6)
-        keys = ["H2", "H1", "AX", "L1", "L2", "CDD", "L2(CDD)", "AX(CDD)"]
-        return keys, signals, None
+        keys = [d.name for d in self.detectors]
+        signals = [random.random() for _ in keys]
+        return keys, signals, None 
 
     def _get_config_dev(self, current, v, comp):
         dev = False

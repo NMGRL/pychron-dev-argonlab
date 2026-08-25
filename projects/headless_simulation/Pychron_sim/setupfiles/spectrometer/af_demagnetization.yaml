@@ -1,0 +1,5 @@
+enabled: True
+threshold: 0.15
+period: 0.5
+duration: 4
+start_amplitude: 0.2

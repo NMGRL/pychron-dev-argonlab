@@ -1,0 +1,4 @@
+value,units,duration,cleanup
+0.8,watts,30.0,30.0
+10.0,watts,30.0,30.0
+20.0,watts,30.0,30.0

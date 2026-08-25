@@ -1,0 +1,163 @@
+<root>
+    <manual_valve>ADiode</manual_valve>
+    <manual_valve>RDiode</manual_valve>
+    <manual_valve>NP-10CRough</manual_valve>
+    
+    <group>furnace
+	<!--<valve>FA
+     	<address>FA</address>
+     	<description>FATurbo Safety</description>
+        <ignore_lock_warning>True</ignore_lock_warning>
+     	<check_actuation_delay>0.75</check_actuation_delay>
+	  </valve>-->
+	  <valve>FD
+		 <address>FD</address>
+		 <description>Furnace Getter</description>
+		 <check_actuation_delay>0.75</check_actuation_delay>
+	  </valve>
+	  <valve>FC
+		 <address>FC</address>
+		 <description>Furnace Turbo</description>
+		 <check_actuation_delay>0.75</check_actuation_delay>
+	  </valve>
+	  <valve>FB
+		 <address>FB</address>
+		 <description>FBTurbo Safety</description>
+		 <check_actuation_delay>0.75</check_actuation_delay>
+          <ignore_lock_warning>True</ignore_lock_warning>
+	  </valve>
+	  <!-- 
+<valve>FE
+		 <address>FE</address>
+		 <description>Upper Shutter</description>
+		 <inverted>True</inverted>
+		 <check_actuation_delay>0.75</check_actuation_delay>
+	  </valve>
+<valve>FF
+		 <address>FF</address>
+		 <description>Lower Shutter</description>
+		 <inverted>True</inverted>
+		 <check_actuation_delay>0.75</check_actuation_delay>
+	  </valve> 
+	  <valve>FG
+		 <address>FG</address>
+		 <description>GateValve</description>
+		 <check_actuation_delay>2.75</check_actuation_delay>
+	  </valve>
+ -->
+	   <valve>FH
+		 <address>FH</address>
+		 <description>Furnace Isolation</description>
+		 <check_actuation_delay>0.75</check_actuation_delay>
+	  </valve>
+	</group>
+    <group>co2
+<!--
+         <valve query_state="false">A
+            <description>CO2 Laser to Jan</description>
+        </valve>
+-->
+        <valve query_state="false">F
+            <description>CO2 Laser to Bone</description>
+            <ignore_lock_warning>True</ignore_lock_warning>
+        </valve>
+        <valve query_state="false">G
+            <description>CO2 Laser to Roughing</description>
+            <ignore_lock_warning>True</ignore_lock_warning>
+        </valve>
+    </group>
+    <group>bone
+        <valve query_state="false">C
+            <description>Bone to Turbo</description>
+        </valve>
+        <valve query_state="false">B
+            <description>Bone to Diode Laser</description>
+        </valve>
+        <valve query_state="false">E
+            <description>Bone to Minibone</description>
+        </valve>
+        <valve query_state="false">D
+            <description>Bone to CO2 Laser</description>
+        </valve>
+        <valve query_state="false">H
+            <description>Felix Inlet</description>
+        </valve>
+        <valve query_state="false">N
+            <description>Bone to Getter GP-50</description>
+        </valve>
+        <valve query_state="false">J
+            <description>Bone to APIS</description>
+        </valve>
+    </group>
+    <group>mini
+        <valve query_state="false">I
+            <description>Minibone to Bone</description>
+        </valve>
+        <valve query_state="false">P
+            <description>Minibone to Turbo</description>
+        </valve>
+        <valve query_state="false">W
+            <interlock>X</interlock>
+            <description>Outer Pipette 1</description>
+        </valve>
+        <valve query_state="false">X
+            <interlock>W</interlock>
+            <description>Inner Pipette 1</description>
+        </valve>
+        <valve query_state="false">Y
+            <interlock>Z</interlock>
+            <description>Outer Pipette 2</description>
+        </valve>
+        <valve query_state="false">Z
+            <interlock>Y</interlock>
+            <description>Inner Pipette 2</description>
+        </valve>
+        <valve query_state="false">Q
+            <description>Quad Inlet</description>
+        </valve>
+    </group>
+    <group>micro
+        <valve query_state="false">R
+            <description>Jan Inlet</description>
+        </valve>
+        <valve query_state="false">S
+            <description>Microbone to Inlet Pipette</description>
+        </valve>
+        <valve query_state="false">L
+            <description>Microbone to Minibone</description>
+        </valve>
+        <valve query_state="false">M
+            <description>Microbone to Getter NP-10</description>
+        </valve>
+        <valve query_state="false">U
+            <description>Microbone to Turbo</description>
+        </valve>
+        <valve query_state="false">T
+            <description>Microbone to CO2 Laser</description>
+        </valve>
+        <valve query_state="false">K
+            <description>Microbone to Getter D-50</description>
+        </valve>
+    </group>
+    <valve query_state="true">V
+        <description>Felix Ion Pump</description>
+    </valve>
+    <valve query_state="true">O
+        <description>Jan Ion Pump</description>
+    </valve>
+    
+    <!--<switch>AA
+      <actuator>apis_controller</actuator>
+      <description>apis external pumping</description>
+      <parent>C</parent>
+    </switch>-->
+    
+    <pipette>Air
+    <inner>Z</inner>
+    <outer>Y</outer>
+    </pipette>
+    <pipette>Cocktail
+    <inner>X</inner>
+    <outer>W</outer>
+    </pipette>
+</root>

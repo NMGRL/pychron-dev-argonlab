@@ -1,0 +1,16 @@
+
+columns:
+  - Labnumber
+  - Aliquot
+  - Sample
+  - Position
+  - Extract
+  - Units
+  - Duration (s)
+  - Cleanup (s)
+  - Beam (mm)
+  - Pattern
+  - Extraction
+  - Measurement
+  - Conditionals
+  - Comment

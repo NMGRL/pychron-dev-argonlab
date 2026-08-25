@@ -1,0 +1,77 @@
+a:
+  extraction: air_x1
+  measurement: analysis340_60_CDD_center
+  modifier: 4
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+ap:
+  extraction: apis_air1
+  measurement: analysis400_120
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+ba:
+  extraction: air_x1_boneonly
+  measurement: analysis340_60_no_center
+  modifier: 3
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+bac:
+  extraction: apis_ac1
+  measurement: analysis400_120
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+bap:
+  extraction: apis_air1
+  measurement: analysis400_120
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+bc:
+  extraction: cocktail_x1
+  measurement: analysis340_60_no_center
+  modifier: 3
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+be:
+  extraction: diode
+  measurement: analysis340_60_no_center
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+bfc:
+  extraction: apis_fc1
+  measurement: analysis400_120
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+bg:
+  extraction: static.py
+  measurement: analysis400_120
+  post_equilibration: null
+  post_measurement: pump_ms
+bu:
+  FusionsDiode:
+    cleanup: 30
+    duration: 30
+    extraction: diode
+  measurement: Syn340_no_center
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+c:
+  extraction: cocktail_x1
+  measurement: analysis340_60_no_center
+  modifier: 3
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+dg:
+  extraction: degas
+  measurement: null
+  post_equilibration: null
+  post_measurement: null
+ic:
+  extraction: air_x1
+  measurement: ic_peak_hop
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
+u:
+  extraction: diode
+  measurement: analysis340_60_CDD_center
+  post_equilibration: pump_extraction_line
+  post_measurement: pump_ms
