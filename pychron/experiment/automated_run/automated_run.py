@@ -2432,12 +2432,6 @@ anaylsis_type={}
             self.debug("plot panel setup: create={}".format(create))
             
             if create:
-                old_panel = self.plot_panel
-                if old_panel is not None and hasattr(old_panel, "dispose"):
-                    try:
-                        old_panel.dispose()
-                    except Exception as e:
-                        self.debug("plot panel dispose error: {}".format(e))
                 self.debug("plot panel setup: creating new plot panel...")
                 p = self._new_plot_panel(stack_order="top_to_bottom")
                 step_duration = time_module.time() - step_start
@@ -2774,36 +2768,22 @@ anaylsis_type={}
                                 multiples.append(name)
                                 name = "{}{}".format(name, det.name)
 
-                            # Skip identity writes: assigning to y_axis.title
-                            # fires chaco trait notifications even when the
-                            # value is unchanged.  On a stacked graph with
-                            # multiple plots that cascade into the axis
-                            # layout/font observer chain has been seen to
-                            # produce 20 000+ QEvent.Timer/s on the main
-                            # thread until a stale receiver crashes the loop.
-                            axis = plots[i].y_axis
-                            if axis.title != name:
-                                axis.title = name
-                                self.debug(
-                                    "setting label {} {} {}".format(
-                                        i, det.name, name
-                                    )
-                                )
+                            plots[i].y_axis.title = name
+                            self.debug(
+                                "setting label {} {} {}".format(i, det.name, name)
+                            )
                             names.append(name)
 
                     for i, det in enumerate(self._active_detectors):
                         if i < n:
                             name = det.isotope
                             if name in multiples:
-                                disambig = "{}{}".format(name, det.name)
-                                axis = plots[i].y_axis
-                                if axis.title != disambig:
-                                    self.debug(
-                                        "second setting label {} {} {}".format(
-                                            i, det.name, name
-                                        )
+                                self.debug(
+                                    "second setting label {} {} {}".format(
+                                        i, det.name, name
                                     )
-                                    axis.title = disambig
+                                )
+                                plots[i].y_axis.title = "{}{}".format(name, det.name)
                     g.refresh()
 
     def _update_detectors(self):
@@ -2847,13 +2827,7 @@ anaylsis_type={}
 
         if for_collection:
             if update_labels:
-                # _update_labels mutates chaco trait state (plots[i].y_axis.title
-                # = ...) and calls graph.refresh(); both touch Qt-backed paint
-                # caches.  Running them on the worker thread races the Qt event
-                # loop and has been observed to corrupt overlay lifetimes,
-                # producing SIGSEGV in QCoreApplication::notifyInternal2 when a
-                # later QTimer fires on a freed receiver.  Marshal to main.
-                invoke_in_main_thread(self._update_labels)
+                self._update_labels()
 
             if update_detectors:
                 self._update_detectors()
@@ -3115,9 +3089,6 @@ anaylsis_type={}
         m.set_starttime(starttime)
         if hasattr(self.spectrometer_manager.spectrometer, "trigger_acq"):
             m.trait_set(trigger=self.spectrometer_manager.spectrometer.trigger_acq)
-
-        if hasattr(self.spectrometer_manager.spectrometer, "set_replay_context"):
-            self.spectrometer_manager.spectrometer.set_replay_context(grpname, starttime)
 
         if self.plot_panel:
             self.plot_panel.integration_time = self._integration_seconds

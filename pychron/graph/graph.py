@@ -205,7 +205,6 @@ class Graph(ContextMenuMixin):
         """ """
         super(Graph, self).__init__(*args, **kw)
         self._redraw_pending = False
-        self._disposed = False
         self.clear()
 
         pc = self.plotcontainer
@@ -1006,8 +1005,6 @@ class Graph(ContextMenuMixin):
 
     def redraw(self, force=True):
         """ """
-        if self._disposed or self.plotcontainer is None:
-            return
         if force:
             self.invalidate_and_redraw()
             return
@@ -1429,31 +1426,11 @@ class Graph(ContextMenuMixin):
         return result
 
     def _execute_pending_redraw(self):
-        if self._disposed or not self._redraw_pending or self.plotcontainer is None:
+        if not self._redraw_pending or self.plotcontainer is None:
             return
 
         self._redraw_pending = False
         self.plotcontainer.request_redraw()
-
-    def dispose(self):
-        """Mark this graph dead so any timer callback still queued in the Qt
-        event loop bails out before touching freed chaco/Qt objects.
-
-        Do NOT mutate the live plotcontainer's tools/overlays here -- those
-        are chaco List traits, and assigning [] fires _items_changed which
-        triggers container relayout + request_redraw across every plot.  On
-        a complex stacked graph that cascades into a runaway QTimer storm
-        (observed: 23 events/s climbing to 23 000 events/s within seconds,
-        then SIGSEGV in QCoreApplication::notifyInternal2 when one of the
-        chaco overlays got freed mid-burst).  The _disposed flag alone is
-        enough to keep redraw() and _execute_pending_redraw() from touching
-        a dying container; orphaned overlays drain via Qt's normal
-        deleteLater path, with the safe event filter catching stale Timer
-        events on freed receivers.
-        """
-        self._disposed = True
-        self._redraw_pending = False
-        self.plotcontainer = None
 
     def _get_selected_plotid(self):
         r = 0
