@@ -26,6 +26,20 @@ import sys
 import threading
 import time
 import traceback
+try: 
+    from PyQt5 import sip as _sip
+except ImportError:
+    import sip as _sip
+
+
+def cpp_addr(obj):
+    """C++ address of a sip-wrapped QObject to see what process is 
+    crashing Pychron on errant Tableview disposals"""
+    try: 
+        return _sip.unwrapinstance(obj)
+    except Exception:
+        return 0
+
 
 _INSTALLED = False
 _WATCHDOG_INSTALLED = False
@@ -67,7 +81,8 @@ def _get_log_path() -> str:
     home = os.path.expanduser("~")
     candidates.extend(
         [
-            os.path.join(home, "Pychron", "logs"),
+            os.path.join(home, "Pychron3", "logs"),
+	    os.path.join(home, "Pychron", "logs"),
             os.path.join(home, ".pychron.0", "logs"),
             home,
         ]
@@ -87,8 +102,8 @@ def _get_log_path() -> str:
 
 def _attach_file_handler() -> None:
     path = _get_log_path()
-    # rotate at 5 MB, keep 5 backups
-    fh = logging.handlers.RotatingFileHandler(path, maxBytes=5 * 1024 * 1024, backupCount=5)
+    # rotate at 50 MB, keep 5 backups <-- extra monitoring until hang bug is resolved
+    fh = logging.handlers.RotatingFileHandler(path, maxBytes=50 * 1024 * 1024, backupCount=5)
     fh.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s %(levelname)s [%(threadName)s] %(message)s")
     fh.setFormatter(fmt)
@@ -331,12 +346,26 @@ _watchdog: _Watchdog | None = None
 def _on_main_thread() -> bool:
     return threading.current_thread() is threading.main_thread()
 
+_marshalled_timers = []
 
 def _marshal(fn, *args, **kwargs):
-    """Run fn on the main thread (deferred).  Returns None synchronously."""
+    """Run fn on the main thread (deferred).  Returns None synchronously.
+
+    Retains fn's return value: pyface BaseTimer.perform() calls stop() from 
+    inside its own callback, dropping the timer's only other strong reference,
+    so without this the destructor runs while Qt is still dispatching it.
+    """
     from pychron.core.ui.gui import invoke_in_main_thread
 
-    invoke_in_main_thread(fn, *args, **kwargs)
+    def _run():
+        result = fn(*args, **kwargs)
+        if result is not None:
+            _marshalled_timers.append(result)
+            if len(_marshalled_timers) > 64:
+                del _marshalled_timers[0]
+        return result
+
+    invoke_in_main_thread(_run)
     return None
 
 
@@ -348,42 +377,6 @@ def install_thread_safe_marshalling() -> None:
         return
 
     patched = []
-
-    # --- pyface.timer.do_later.do_after / do_later ----------------------------
-    try:
-        import pyface.timer.do_later as _dl
-
-        if hasattr(_dl, "do_after"):
-            _orig_do_after = _dl.do_after
-
-            def _safe_do_after(ms, callable_, *a, **kw):
-                if _on_main_thread():
-                    return _orig_do_after(ms, callable_, *a, **kw)
-                _log.debug(
-                    "marshalling do_after from %s",
-                    threading.current_thread().name,
-                )
-                return _marshal(_orig_do_after, ms, callable_, *a, **kw)
-
-            _dl.do_after = _safe_do_after
-            patched.append("pyface.timer.do_later.do_after")
-
-        if hasattr(_dl, "do_later"):
-            _orig_do_later = _dl.do_later
-
-            def _safe_do_later(callable_, *a, **kw):
-                if _on_main_thread():
-                    return _orig_do_later(callable_, *a, **kw)
-                _log.debug(
-                    "marshalling do_later from %s",
-                    threading.current_thread().name,
-                )
-                return _marshal(_orig_do_later, callable_, *a, **kw)
-
-            _dl.do_later = _safe_do_later
-            patched.append("pyface.timer.do_later.do_later")
-    except Exception as e:  # pragma: no cover
-        _log.error("marshalling: pyface.timer.do_later patch failed: %s", e)
 
     # --- pyface.timer.i_timer.CallbackTimer.single_shot -----------------------
     # do_after_timer routes through CallbackTimer.single_shot, but other
@@ -490,7 +483,7 @@ def install_event_tracer() -> None:
         trace_path = os.path.join(os.path.dirname(_get_log_path()), "m3_eventtrace.log")
         try:
             fh = _FlushingRotatingHandler(
-                trace_path, maxBytes=5 * 1024 * 1024, backupCount=3
+                trace_path, maxBytes=50 * 1024 * 1024, backupCount=3
             )
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(
@@ -522,11 +515,59 @@ def install_event_tracer() -> None:
             _is_deleted = None
 
     TIMER_EVT = int(QEvent.Timer)
+    # DeferredDelete fires when a QObject is torn down via deleteLater() (the
+    # safe path). Immediate C++ deletes do NOT emit it, so a widget whose
+    # timer later fires on a freed receiver may show NO DeferredDelete line --
+    # that absence is itself the signal (destroyed the unsafe way). We log
+    # these for the table/header/scrollbar/graph classes so the destroy
+    # timestamp can be cross-referenced against the trailing Timer fires in
+    # this same file right before a SIGSEGV.
+    try:
+        DEFERRED_DELETE_EVT = int(QEvent.DeferredDelete)
+    except Exception:
+        DEFERRED_DELETE_EVT = 52
+    _WATCH_DESTROY = (
+        "_TableView",
+        "QHeaderView",
+        "QScrollBar",
+        "QTableView",
+        "QAbstractItemView",
+        "QTreeView",
+        "_AnalysisView",
+        "PlotPanel",
+    )
 
     class _EventTracer(QObject):
         def eventFilter(self, obj, ev):
             try:
-                if int(ev.type()) == TIMER_EVT:
+                et = int(ev.type())
+                if et == DEFERRED_DELETE_EVT:
+                    try:
+                        cls = type(obj).__name__
+                    except Exception:
+                        cls = "?"
+                    if cls in _WATCH_DESTROY or cls.endswith("View"):
+                        oname = ""
+                        try:
+                            oname = obj.objectName() or ""
+                        except Exception:
+                            pass
+                        pcls = ""
+                        try:
+                            p = obj.parent()
+                            if p is not None:
+                                pcls = type(p).__name__
+                        except Exception:
+                            pcls = "?"
+                        trace_logger.debug(
+                            "DeferredDelete cls=%s pyid=0x%x name=%s parent=%s",
+                            cls,
+                            id(obj),
+                            oname,
+                            pcls,
+                        )
+                    return False
+                if et == TIMER_EVT:
                     try:
                         tid = ev.timerId()
                     except Exception:
@@ -582,9 +623,9 @@ def install_event_tracer() -> None:
                         except Exception:
                             pass
                     trace_logger.debug(
-                        "Timer cls=%s pyid=0x%x qtid=%d%s%s",
+                        "Timer cls=%s cppid=0x%x qtid=%d%s%s",
                         cls,
-                        id(obj),
+                        cpp_addr(obj),
                         tid,
                         extra,
                         dead,
@@ -838,6 +879,142 @@ def install_queue_rate_logger(window_seconds: float = 30.0) -> None:
     _log.info("queue rate logger installed (window=%.1fs)", window_seconds)
 
 
+# ---------------------------------------------------------------------------
+# Deferred-callback retention (native arm64 timer-outlives-owner UAF fix)
+# ---------------------------------------------------------------------------
+# A QTimer.singleShot / pyface do_after|do_later whose bound-method callback's
+# owner is torn down before the timer fires leaves the timer's receiver either
+# (a) freed-and-reused -> garbage vtable, or (b) NULL.  The tick then hits
+# QTimerInfoList::activateTimers -> QCoreApplication::notifyInternal2 with a
+# dead/NULL receiver -> SIGSEGV.  On x86 the freed slot survived long enough to
+# stay latent; native arm64 recycles it immediately.  Holding a strong ref to
+# the callback/timer until it fires keeps the owner (and its PyQtSlotProxy)
+# alive, closing both forms.  Confirmed via lldb: one crash = freed
+# PyQtSlotProxy from a singleShot callback; another = NULL receiver.
+_DEFERRED_RETENTION_INSTALLED = False
+_RETAINED_SINGLESHOT_CBS = set()
+_RETAINED_TIMERS = set()
+
+
+def install_deferred_callback_retention() -> None:
+    """Retain QTimer.singleShot callbacks and pyface do_after/do_later timers
+    until they fire.  Patches the class-method funnels (QTimer.singleShot and
+    CallbackTimer.single_shot) so it works regardless of how callers imported
+    do_after/do_later.  Must run after install_thread_safe_marshalling()."""
+    global _DEFERRED_RETENTION_INSTALLED
+    if _DEFERRED_RETENTION_INSTALLED:
+        return
+
+    try:
+        from pyface.qt.QtCore import QTimer
+
+        _orig_ss = QTimer.singleShot
+
+        def _retaining_single_shot(*a, **kw):
+            if len(a) >= 2 and callable(a[1]):
+                msec, cb, rest = a[0], a[1], a[2:]
+
+                def _wrapped(*wa, **wkw):
+                    try:
+                        return cb(*wa, **wkw)
+                    finally:
+                        _RETAINED_SINGLESHOT_CBS.discard(_wrapped)
+
+                _RETAINED_SINGLESHOT_CBS.add(_wrapped)
+                return _orig_ss(msec, _wrapped, *rest, **kw)
+            return _orig_ss(*a, **kw)
+
+        QTimer.singleShot = _retaining_single_shot
+        _log.info("deferred retention: QTimer.singleShot wrapped")
+    except (TypeError, AttributeError) as e:
+        _log.warning("deferred retention: QTimer.singleShot wrap rejected: %s", e)
+    except Exception as e:  # pragma: no cover
+        _log.error("deferred retention: QTimer.singleShot wrap failed: %s", e)
+
+    try:
+        from pyface.timer.timer import CallbackTimer
+
+        _orig_cbt_ss = CallbackTimer.single_shot  # possibly already wrapped
+
+        def _retaining_cbt_single_shot(cls, **traits):
+            timer = _orig_cbt_ss(**traits)
+            if timer is not None:
+                try:
+                    orig_cb = getattr(timer, "callback", None)
+                    if callable(orig_cb):
+
+                        def _release(*wa, __cb=orig_cb, __t=timer, **wkw):
+                            try:
+                                return __cb(*wa, **wkw)
+                            finally:
+                                _RETAINED_TIMERS.discard(__t)
+
+                        timer.callback = _release
+                    _RETAINED_TIMERS.add(timer)
+                except Exception as e:  # never break scheduling
+                    _log.debug("deferred retention: timer retain skipped: %s", e)
+            return timer
+
+        CallbackTimer.single_shot = classmethod(_retaining_cbt_single_shot)
+        _log.info("deferred retention: CallbackTimer.single_shot wrapped")
+    except (TypeError, AttributeError) as e:
+        _log.warning("deferred retention: CallbackTimer wrap rejected: %s", e)
+    except Exception as e:  # pragma: no cover
+        _log.error("deferred retention: CallbackTimer wrap failed: %s", e)
+
+    _DEFERRED_RETENTION_INSTALLED = True
+    _log.info("deferred-callback retention installed")
+
+
+# enable.abstract_window.AbstractWindow.cleanup() (from Chaco/enable widgets)
+# only does 'self.control=None': dropping the Python reference to the real Qt Widget
+# but never explicitly stopping or destroying it. (confirmed in site-packages/enable/abstract_window.py)
+# this is the first layer in the enthought component disposal chain that does not do any real QT-level teardown
+# Timers can leak through this
+_ENABLE_WINDOW_CLEANUP_PATCHED = False 
+
+
+def install_enable_window_cleanup_patch() -> None: 
+    """
+    Patch enable.abstract_window.AbstractWindow.cleanup() to 
+    explicitly stop every QTimer taht is a Qt-level child of 
+    the widget being cleaned up, then retire(hide + reparent)
+    it for a few rebuild cycles before a deferred deleteLater()
+    instead of just dropping the Python reference.
+    """
+    global _ENABLE_WINDOW_CLEANUP_PATCHED
+    if _ENABLE_WINDOW_CLEANUP_PATCHED:
+        return 
+    try: 
+        from enable.abstract_window import AbstractWindow
+        from pyface.qt.QtCore import QTimer 
+    except Exception as e: 
+        _log.error("install_enable_window_cleanup_patch: import failed: %s", e)
+        return 
+
+    orig_cleanup = AbstractWindow.cleanup
+
+    def cleanup_wrapper(self):
+        ctrl = self.control
+        if ctrl is not None:
+            try: 
+                for t in ctrl.findChildren(QTimer):
+                    t.stop()
+                ctrl.hide()
+                ctrl.setParent(None)
+                ctrl.deleteLater()
+            except Exception as e:
+                _log.debug("enable window cleanup patch: retire failed: %s", e)
+        return orig_cleanup(self)
+
+    try: 
+        AbstractWindow.cleanup = cleanup_wrapper
+        _ENABLE_WINDOW_CLEANUP_PATCHED = True 
+        _log.info("enable AbstractWindow.cleanup patched (QTimer stop + retire)")
+    except (TypeError, AttributeError) as e: 
+        _log.warning("install_enable_window_cleanup_patch: patch rejected: %s", e)
+
+
 def install_late(stall_threshold: float = 5.0) -> None:
     """Install hooks that require a constructed QApplication.  Call right
     after app_factory() and before app.run().
@@ -846,8 +1023,13 @@ def install_late(stall_threshold: float = 5.0) -> None:
     require a running QApplication, but it does require pyface to be fully
     imported, which is only guaranteed once app_factory has run)."""
     install_thread_safe_marshalling()
+    install_deferred_callback_retention()
+    install_enable_window_cleanup_patch()
     install_main_thread_watchdog(stall_threshold=stall_threshold)
     install_safe_event_filter()
+    from pychron.core.helpers.m3_timer_probe import install_timer_probe
+
+    install_timer_probe()
     install_queue_rate_logger()
     # Event tracer is opt-in: it logs one line per Timer event delivered
     # on the main thread, which is verbose.  Enable when hunting a crash

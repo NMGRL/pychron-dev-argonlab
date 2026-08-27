@@ -2768,22 +2768,36 @@ anaylsis_type={}
                                 multiples.append(name)
                                 name = "{}{}".format(name, det.name)
 
-                            plots[i].y_axis.title = name
-                            self.debug(
-                                "setting label {} {} {}".format(i, det.name, name)
-                            )
+                            # Skip identity writes: assigning to y_axis.title
+                            # fires chaco trait notifications even when the
+                            # value is unchanged.  On a stacked graph with
+                            # multiple plots that cascade into the axis
+                            # layout/font observer chain has been seen to
+                            # produce 20 000+ QEvent.Timer/s on the main
+                            # thread until a stale receiver crashes the loop.
+                            axis = plots[i].y_axis
+                            if axis.title != name:
+                                axis.title = name
+                                self.debug(
+                                    "setting label {} {} {}".format(
+                                        i, det.name, name
+                                    )
+                                )
                             names.append(name)
 
                     for i, det in enumerate(self._active_detectors):
                         if i < n:
                             name = det.isotope
                             if name in multiples:
-                                self.debug(
-                                    "second setting label {} {} {}".format(
-                                        i, det.name, name
+                                disambig = "{}{}".format(name, det.name)
+                                axis = plots[i].y_axis
+                                if axis.title != disambig:
+                                    self.debug(
+                                        "second setting label {} {} {}".format(
+                                            i, det.name, name
+                                        )
                                     )
-                                )
-                                plots[i].y_axis.title = "{}{}".format(name, det.name)
+                                    axis.title = disambig
                     g.refresh()
 
     def _update_detectors(self):
@@ -2827,7 +2841,13 @@ anaylsis_type={}
 
         if for_collection:
             if update_labels:
-                self._update_labels()
+                # _update_labels mutates chaco trait state (plots[i].y_axis.title
+                # = ...) and calls graph.refresh(); both touch Qt-backed paint
+                # caches.  Running them on the worker thread races the Qt event
+                # loop and has been observed to corrupt overlay lifetimes,
+                # producing SIGSEGV in QCoreApplication::notifyInternal2 when a
+                # later QTimer fires on a freed receiver.  Marshal to main.
+                invoke_in_main_thread(self._update_labels)
 
             if update_detectors:
                 self._update_detectors()
