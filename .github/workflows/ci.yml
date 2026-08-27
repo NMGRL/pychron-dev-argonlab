@@ -56,6 +56,8 @@ jobs:
 
       - name: Determine Python files to check
         id: changed-python
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           python <<'PY' >> "$GITHUB_OUTPUT"
           import os
@@ -75,13 +77,21 @@ jobs:
                   base = os.environ["GITHUB_BASE_REF"]
                   cmd = ["git", "diff", "--name-only", f"origin/{base}...HEAD", "--", "*.py"]
               else:
-                  before = os.environ.get("GITHUB_EVENT_BEFORE")
-                  if before:
+                  before = os.environ.get("EVENT_BEFORE", "")
+                  zero_sha = "0000000000000000000000000000000000000000"
+                  if before and before != zero_sha:
                       cmd = ["git", "diff", "--name-only", before, "HEAD", "--", "*.py"]
                   else:
-                      cmd = ["git", "ls-files", "*.py"]
-
-              files = subprocess.check_output(cmd, text=True).splitlines()
+                      try:
+                          parent = subprocess.check_output(
+                              ["git", "rev-parse", "HEAD~1"],
+                              text=True,
+                              stderr=subprocess.DEVNULL,
+                          ).strip()
+                          cmd = ["git", "diff", "--name-only", parent, "HEAD", "--", "*.py"]
+                      except subprocess.CalledProcessError:
+                          cmd = None
+              files = subprocess.check_output(cmd, text=True).splitlines() if cmd else []
           files = [f for f in files if f.startswith("pychron/")]
           print("files<<EOF")
           print(" ".join(files))
@@ -124,6 +134,8 @@ jobs:
 
       - name: Determine Python files to check
         id: changed-python
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           python <<'PY' >> "$GITHUB_OUTPUT"
           import os
@@ -143,13 +155,21 @@ jobs:
                   base = os.environ["GITHUB_BASE_REF"]
                   cmd = ["git", "diff", "--name-only", f"origin/{base}...HEAD", "--", "*.py"]
               else:
-                  before = os.environ.get("GITHUB_EVENT_BEFORE")
-                  if before:
+                  before = os.environ.get("EVENT_BEFORE", "")
+                  zero_sha = "0000000000000000000000000000000000000000"
+                  if before and before != zero_sha:
                       cmd = ["git", "diff", "--name-only", before, "HEAD", "--", "*.py"]
                   else:
-                      cmd = ["git", "ls-files", "*.py"]
-
-              files = subprocess.check_output(cmd, text=True).splitlines()
+                      try:
+                          parent = subprocess.check_output(
+                              ["git", "rev-parse", "HEAD~1"],
+                              text=True,
+                              stderr=subprocess.DEVNULL,
+                          ).strip()
+                          cmd = ["git", "diff", "--name-only", parent, "HEAD", "--", "*.py"]
+                      except subprocess.CalledProcessError:
+                          cmd = None
+              files = subprocess.check_output(cmd, text=True).splitlines() if cmd else []
           files = [f for f in files if f.startswith("pychron/")]
           print("files<<EOF")
           print(" ".join(files))
