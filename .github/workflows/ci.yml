@@ -75,12 +75,12 @@ jobs:
           else:
               if event_name == "pull_request":
                   base = os.environ["GITHUB_BASE_REF"]
-                  cmd = ["git", "diff", "--name-only", f"origin/{base}...HEAD", "--", "*.py"]
+                  cmd = ["git", "diff", "--name-only", "--diff-filter=d", f"origin/{base}...HEAD", "--", "*.py"]
               else:
                   before = os.environ.get("EVENT_BEFORE", "")
                   zero_sha = "0000000000000000000000000000000000000000"
                   if before and before != zero_sha:
-                      cmd = ["git", "diff", "--name-only", before, "HEAD", "--", "*.py"]
+                      cmd = ["git", "diff", "--name-only", "--diff-filter=d", before, "HEAD", "--", "*.py"]
                   else:
                       try:
                           parent = subprocess.check_output(
@@ -88,7 +88,7 @@ jobs:
                               text=True,
                               stderr=subprocess.DEVNULL,
                           ).strip()
-                          cmd = ["git", "diff", "--name-only", parent, "HEAD", "--", "*.py"]
+                          cmd = ["git", "diff", "--name-only", "--diff-filter=d", parent, "HEAD", "--", "*.py"]
                       except subprocess.CalledProcessError:
                           cmd = None
               files = subprocess.check_output(cmd, text=True).splitlines() if cmd else []
@@ -153,12 +153,12 @@ jobs:
           else:
               if event_name == "pull_request":
                   base = os.environ["GITHUB_BASE_REF"]
-                  cmd = ["git", "diff", "--name-only", f"origin/{base}...HEAD", "--", "*.py"]
+                  cmd = ["git", "diff", "--name-only", "--diff-filter=d", f"origin/{base}...HEAD", "--", "*.py"]
               else:
                   before = os.environ.get("EVENT_BEFORE", "")
                   zero_sha = "0000000000000000000000000000000000000000"
                   if before and before != zero_sha:
-                      cmd = ["git", "diff", "--name-only", before, "HEAD", "--", "*.py"]
+                      cmd = ["git", "diff", "--name-only", "--diff-filter=d", before, "HEAD", "--", "*.py"]
                   else:
                       try:
                           parent = subprocess.check_output(
@@ -166,7 +166,7 @@ jobs:
                               text=True,
                               stderr=subprocess.DEVNULL,
                           ).strip()
-                          cmd = ["git", "diff", "--name-only", parent, "HEAD", "--", "*.py"]
+                          cmd = ["git", "diff", "--name-only", "--diff-filter=d", parent, "HEAD", "--", "*.py"]
                       except subprocess.CalledProcessError:
                           cmd = None
               files = subprocess.check_output(cmd, text=True).splitlines() if cmd else []
