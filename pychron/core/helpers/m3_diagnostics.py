@@ -878,6 +878,50 @@ def install_queue_rate_logger(window_seconds: float = 30.0) -> None:
     _QUEUE_LOGGER_STARTED = True
     _log.info("queue rate logger installed (window=%.1fs)", window_seconds)
 
+# enable.abstract_window.AbstractWindow.cleanup() (site-packages/enable/abstract_window.py)
+# only does 'self.control=None': dropping the Python reference to the real Qt Widget
+# but never explicitly stopping or destroying it. This is the first layer in the
+# enthought component disposal chain that does not do any real QT-level teardown.
+# Timers can leak through this.
+_ENABLE_WINDOW_CLEANUP_PATCHED = False
+
+def install_enable_window_cleanup_patch() -> None:
+    """
+    Patch enable.abstract_window.AbstractWindow.cleanup() to explicitly stop
+    every QTimer that is a Qt-level child of the widget being cleaned up,
+    then deleteLater() it instead of just dropping the Python reference.
+    """
+    global _ENABLE_WINDOW_CLEANUP_PATCHED
+    if _ENABLE_WINDOW_CLEANUP_PATCHED:
+        return
+    try:
+        from enable.abstract_window import AbstractWindow
+        from pyface.qt.QtCore import QTimer
+    except Exception as e:
+         _log.error("install_enable_window_cleanup_patch: import failed: %s", e)
+         return
+
+    orig_cleanup = AbstractWindow.cleanup
+
+    def cleanup_wrapper(self):
+        ctrl = self.control
+        if ctrl is not None:
+            try:
+                for t in ctrl.findChildren(QTimer):
+                    t.stop()
+                ctrl.hide()
+                ctrl.setParent(None)
+                ctrl.deleteLater()
+            except Exception as e:
+                _log.debug("enable window cleanup patch: retire failed: %s", e)
+        return orig_cleanup(self)
+
+    try:
+        AbstractWindow.cleanup = cleanup_wrapper
+        _ENABLE_WINDOW_CLEANUP_PATCHED = True
+        _log.info("enable AbstractWindow.cleanup patched (QTimer stop + retire)")
+    except (TypeError, AttributeError) as e:
+         _log.warning("install_enable_window_cleanup_patch: patch rejected: %s", e)
 
 def install_late(stall_threshold: float = 5.0) -> None:
     """Install hooks that require a constructed QApplication.  Call right
@@ -887,6 +931,7 @@ def install_late(stall_threshold: float = 5.0) -> None:
     require a running QApplication, but it does require pyface to be fully
     imported, which is only guaranteed once app_factory has run)."""
     install_thread_safe_marshalling()
+    install_enable_window_cleanup_patch()
     install_main_thread_watchdog(stall_threshold=stall_threshold)
     install_safe_event_filter()
     from pychron.core.helpers.m3_timer_probe import install_timer_probe

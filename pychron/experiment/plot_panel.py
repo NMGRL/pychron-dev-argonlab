@@ -121,7 +121,7 @@ class PlotPanel(Loggable):
     selected_graph = Any
     figure = Any
 
-    graphs = Tuple
+    graphs = List(Instance(Graph))
 
     plot_title = Str
 
@@ -155,10 +155,12 @@ class PlotPanel(Loggable):
         graph.page_name = "Peak Center"
         self.peak_center_graph = graph
 
-        graphs = [g for g in self.graphs if g.page_name != "Peak Center"]
-        graphs.append(graph)
+        for i, g in enumerate(self.graphs):
+              if g.page_name == "Peak Center":
+                  del self.graphs[i]
+                  break
 
-        self.graphs = graphs
+        self.graphs.append(graph)
         self.show_graph(graph)
 
     def show_graph(self, g):
