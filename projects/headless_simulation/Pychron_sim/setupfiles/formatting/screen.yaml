@@ -1,0 +1,15 @@
+
+x_tick_in: 2
+x_tick_out: 5
+x_title_font: Helvetica 12
+x_tick_label_font: Helvetica 10
+
+y_tick_in: 2
+y_tick_out: 5
+y_title_font: Helvetica 12
+y_tick_label_font: Helvetica 10
+
+bgcolor: white
+plot_bgcolor: white
+
+label_font: Helvetica 10

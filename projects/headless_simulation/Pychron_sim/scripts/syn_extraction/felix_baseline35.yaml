@@ -1,0 +1,11 @@
+measurement: syn_baseline35
+post_measurement: 
+baseline_modifiers: 
+  L2(CDD):
+    function: 7e-9*x
+    function_err: countingstatistics
+    variable: ar40 + ar39
+  AX(CDD):
+    function: 1e-7*x
+    function_err: countingstatistics
+    variable: ar40 + ar39

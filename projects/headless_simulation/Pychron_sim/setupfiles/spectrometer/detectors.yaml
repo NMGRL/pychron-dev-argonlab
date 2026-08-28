@@ -1,0 +1,39 @@
+- {active: true, color: 0, deflection_correction_sign: 1, deflection_name: H2, index: 0.0,
+  isotope: Ar40, kind: Faraday, name: H2, protection_threshold: null, relative_position: 0.962866,
+  serial_id: '00000', software_gain: 1.0, use_deflection: false, ypadding: '0.1'}
+- {active: false, color: 16711680, deflection_correction_sign: 1, deflection_name: H1,
+  index: 1.0, isotope: Ar39, kind: Faraday, name: H1, protection_threshold: null,
+  relative_position: 0.981283203103, serial_id: '00000', software_gain: 1.0, use_deflection: false,
+  ypadding: '0.1'}
+- {active: false, color: 255, deflection_correction_sign: 1, deflection_name: AX,
+  index: 2.0, isotope: Ar38, kind: Faraday, name: AX, protection_threshold: null,
+  relative_position: 1.0, serial_id: '00000', software_gain: 1.0, use_deflection: false,
+  ypadding: '0.1'}
+- {active: false, color: 8388608, deflection_correction_sign: 1, deflection_name: L1,
+  index: 3.0, isotope: Ar37, kind: Faraday, name: L1, protection_threshold: null,
+  relative_position: 1.01941036943, serial_id: '00000', software_gain: 1.0, use_deflection: false,
+  ypadding: '0.1'}
+- {active: false, color: 16711935, deflection_correction_sign: 1, deflection_name: L2,
+  index: 4.1, isotope: Ar35, kind: Faraday, name: L2, protection_threshold: null,
+  relative_position: 1.03950850736, serial_id: '00000', software_gain: 1.0, use_deflection: false,
+  ypadding: '0.1'}
+- {active: false, color: 13421772, deflection_correction_sign: -1, deflection_name: H2
+    (CDD), index: 0.1, isotope: Ar36, kind: IonCounter, name: H2(CDD), protection_threshold: 0.1,
+  relative_position: 1.05850295, serial_id: '00000', software_gain: 1.0, use_deflection: true,
+  ypadding: '0.1'}
+- {active: false, color: 16751001, deflection_correction_sign: -1, deflection_name: H1
+    (CDD), index: 0.99, isotope: Ar36, kind: IonCounter, name: H1(CDD), protection_threshold: 0.1,
+  relative_position: 1.05850295, serial_id: '00000', software_gain: 1.0, use_deflection: true,
+  ypadding: '0.1'}
+- {active: false, color: 10066431, deflection_correction_sign: -1, deflection_name: AX
+    (CDD), index: 2.1, isotope: Ar36, kind: IonCounter, name: AX(CDD), protection_threshold: 0.1,
+  relative_position: 1.05850295, serial_id: '00000', software_gain: 1.0, use_deflection: true,
+  ypadding: '0.1'}
+- {active: false, color: 16737792, deflection_correction_sign: -1, deflection_name: L1
+    (CDD), index: 3.1, isotope: Ar36, kind: IonCounter, name: L1(CDD), protection_threshold: 0.1,
+  relative_position: 1.05850295, serial_id: '00000', software_gain: 1.0, use_deflection: true,
+  ypadding: '0.1'}
+- {active: false, color: 16753920, deflection_correction_sign: -1, deflection_name: L2
+    (CDD), index: 4.0, isotope: Ar36, kind: IonCounter, name: L2(CDD), protection_threshold: 0.1,
+  relative_position: 1.05850295, serial_id: '00000', software_gain: 1.0, use_deflection: true,
+  ypadding: '0.1'}

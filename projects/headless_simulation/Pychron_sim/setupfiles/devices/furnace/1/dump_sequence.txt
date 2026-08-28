@@ -1,0 +1,18 @@
+open C #gate valve
+sleep 1
+open A #upper shutter
+sleep 1
+open B #lower shutter
+sleep 1
+lower_funnel D
+sleep 5
+open E #magnetic dumper
+sleep 5
+raise_funnel D
+sleep 5
+close C
+sleep 1
+close A
+sleep 1
+close B
+

@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='ASCII'?>
+<root>
+  <!--<switch>FA
+     <address>FA</address>
+     <description>Rough Turbo</description>
+     <check_actuation_delay>1.5</check_actuation_delay>
+  </switch>-->
+  <switch>FB
+     <address>FB</address>
+     <description>Getter</description>
+     <check_actuation_delay>1.5</check_actuation_delay>
+  </switch>
+  <switch>FC
+     <address>FC</address>
+     <description>Rough</description>
+     <check_actuation_delay>1.5</check_actuation_delay>
+  </switch>
+  <switch>FD
+     <address>FD</address>
+     <description>Furnace Turbo</description>
+     <check_actuation_delay>1.5</check_actuation_delay>
+  </switch>
+  <switch>FE
+     <address>FE</address>
+     <description>Upper Shutter</description>
+     <inverted>True</inverted>
+     <check_actuation_delay>1.5</check_actuation_delay>
+  </switch>
+  <switch>FF
+     <address>FF</address>
+     <description>Lower Shutter</description>
+     <inverted>True</inverted>
+     <check_actuation_delay>1.5</check_actuation_delay>
+  </switch>
+  <switch>FG
+     <address>FG</address>
+     <description>GateValve</description>
+     <check_actuation_delay>3</check_actuation_delay>
+  </switch>
+</root>

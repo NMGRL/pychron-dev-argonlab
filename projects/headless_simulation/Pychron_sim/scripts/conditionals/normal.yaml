@@ -1,0 +1,47 @@
+actions:
+- action: null
+  attr: age
+  frequency: 1
+  mapper: ''
+  ntrips: 1
+  start_count: 10
+  teststr: age<10.0
+  window: 0
+cancelations:
+- attr: ''
+  frequency: 1
+  mapper: ''
+  ntrips: 1
+  start_count: 0
+  teststr: ''
+  window: 0
+post_run_terminations:
+- attr: ''
+  teststr: ''
+pre_run_terminations:
+- attr: ''
+  teststr: ''
+terminations:
+- attr: ''
+  frequency: 1
+  mapper: ''
+  ntrips: 1
+  start_count: 0
+  teststr: ''
+  window: 0
+truncations:
+- attr: ''
+  frequency: 1
+  mapper: ''
+  ntrips: 1
+  start_count: 0
+  teststr: ''
+  window: 0
+modifcations:
+- action: Skip Next Run
+  attr: age
+  frequency: 1
+  mapper: ''
+  ntrips: 1
+  start_count: 10
+  teststr: age<10.0

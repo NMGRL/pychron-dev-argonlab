@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<root>
+	<origin>0,0</origin>
+	<xview>-28,28</xview>
+	<yview>-25,25</yview>
+	<color tag="bgcolor">lightblue
+	</color>
+	<!--
+	<color tag="turbo">255,127,0
+	</color>
+	<color tag="spectrometer">0,170,170
+	</color>
+	-->
+	<color tag="gauge">255,255,0
+	</color>
+	<color tag="getter">94,87,94
+	</color>
+	<color tag="label">167, 201, 166
+	</color>
+	<!-- 
+<image>canvas_bg.png
+	<translation>-28,-25</translation>
+		<scale>2,2</scale>
+	</image>
+	<image>NMGRL_logo.png
+        <translation>-23.75,10</translation>
+		<scale>0.075,0.075</scale>
+	</image>
+ -->
+</root>

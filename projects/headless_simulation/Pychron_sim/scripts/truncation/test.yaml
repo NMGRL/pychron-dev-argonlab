@@ -1,0 +1,7 @@
+- abbreviated_count_ratio: 1.0
+  attr: age
+  comp: age<0.0
+  frequency: 5
+  start: 10
+  value: 0.0
+  value1: 0.0

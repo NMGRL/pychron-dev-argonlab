@@ -1,0 +1,9 @@
+
+"Min et al., 2000":
+  lambda_ec: [5.80e-11, 0]
+  lambda_b: [4.884e-10, 0]
+  monitor_age: 28.201
+"Steiger & Jager 1977":
+  lambda_ec: [5.81e-11, 0]
+  lambda_b: [4.962e-10, 0]
+  monitor_age: 28.02

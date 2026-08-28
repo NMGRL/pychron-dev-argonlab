@@ -1,0 +1,41 @@
+
+- plugin: Database
+  tests:
+    - test_pychron
+- plugin: MassSpec
+  tests:
+    - test_database
+- plugin: LabBook
+  tests:
+- plugin: ArArConstants
+  tests:
+- plugin: ArgusSpectrometer
+  tests:
+    - test_communication
+- plugin: ClientExtractionLine
+  tests:
+    - test_valve_communication
+   # - test_gauge_communication
+- plugin: FusionsDiode
+  tests:
+    - test_communication
+- plugin: FusionsCO2
+  tests:
+    - test_communication
+- plugin: NMGRLFurnace
+  tests:
+    - test_furnace_api
+    #- test_furnace_cam
+- plugin: DVC
+  tests:
+    - test_database
+    - test_dvc_fetch_meta
+- plugin: GitHub
+  tests:
+    - test_api
+- plugin: GoogleCalendar
+  tests:
+    - test_api
+- plugin: Email
+  tests:
+    - test_email_server

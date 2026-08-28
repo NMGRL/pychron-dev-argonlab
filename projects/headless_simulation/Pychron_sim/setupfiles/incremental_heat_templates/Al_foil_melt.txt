@@ -1,0 +1,4 @@
+value,units,duration,cleanup,beam_diameter
+550.0,temp,360.0,30.0
+700.0,temp,360.0,30.0
+900.0,temp,360.0,30.0

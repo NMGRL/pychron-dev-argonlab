@@ -1,0 +1,20 @@
+
+username: root
+use_email: False
+email: 
+use_group_email: False
+date: 2026-08-25 14:55:39.333116
+queue_conditionals_name: 
+mass_spectrometer: Felix
+delay_before_analyses: 5
+delay_between_analyses: 30
+delay_after_blank: 15
+delay_after_air: 10
+delay_after_conditional: 
+extract_device: Fusions Diode
+default_lighting: 0
+tray: ---
+load: F0033
+note: 
+#================================================================================
+labnumber	sample	position	e_value	e_units	duration	cleanup	pre_cleanup	post_cleanup	cryo_temperature	overlap	beam_diam	pattern	light_value	extraction	ramp	t_o	measurement	conditionals	syn_extraction	use_cdd_warming	post_meas	post_eq	s_opt	dis_btw_pos	weight	comment	autocenter	frequency_group	repository_identifier	delay_after

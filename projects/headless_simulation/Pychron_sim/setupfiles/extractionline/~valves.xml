@@ -1,0 +1,78 @@
+<root>
+    <group>bone
+        <valve query_state="false">C
+            <description>Bone to Turbo</description>
+        </valve>
+        <valve query_state="false">B
+            <description>Bone to Diode Laser</description>
+        </valve>
+        <valve query_state="false">E
+            <description>Bone to Minibone</description>
+        </valve>
+        <valve query_state="false">D
+            <description>Bone to CO2 Laser</description>
+        </valve>
+        <valve query_state="false">H
+            <description>Obama Inlet</description>
+        </valve>
+        <valve query_state="false">N
+            <description>Bone to Getter GP-50</description>
+        </valve>
+    </group>
+    <group>mini
+        <valve query_state="false">I
+            <description>Minibone to Bone</description>
+        </valve>
+        <valve query_state="false">P
+            <description>Minibone to Turbo</description>
+        </valve>
+        <valve query_state="false">W
+            <interlock>X</interlock>
+            <description>Outer Pipette 1</description>
+        </valve>
+        <valve query_state="false">X
+            <interlock>W</interlock>
+            <description>Inner Pipette 1</description>
+        </valve>
+        <valve query_state="false">Y
+            <interlock>Z</interlock>
+            <description>Outer Pipette 2</description>
+        </valve>
+        <valve query_state="false">Z
+            <interlock>Y</interlock>
+            <description>Inner Pipette 2</description>
+        </valve>
+        <valve query_state="false">Q
+            <description>Quad Inlet</description>
+        </valve>
+    </group>
+    <group>micro
+        <valve query_state="false">S
+            <description>Microbone to Inlet Pipette</description>
+        </valve>
+        <valve query_state="false">R
+            <description>Jan Inlet</description>
+        </valve>
+        <valve query_state="false">L
+            <description>Microbone to Minibone</description>
+        </valve>
+        <valve query_state="false">M
+            <description>Microbone Getter NP-10</description>
+        </valve>
+        <valve query_state="false">U
+            <description>Microbone to Analytical Turbo</description>
+        </valve>
+        <valve query_state="false">T
+            <description>Microbone to CO2</description>
+        </valve>
+        <valve query_state="false">K
+            <description>Microbone Getter D-50</description>
+        </valve>
+    </group>
+    <valve query_state="true">V
+        <description>Obama Ion Pump</description>
+    </valve>
+    <valve query_state="true">O
+        <description>Jan Ion Pump</description>
+    </valve>
+</root>

@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root>
+
+    <label>UpperShutter
+      <translation>-20,4</translation>
+    </label>
+    <label>Gate
+      <translation>-20,-1</translation>
+    </label>
+    <label>LowerShutter
+      <translation>-20,-6</translation>
+    </label>    
+    
+    <!-- 
+<switch>D
+        <translation>1.25,15</translation>
+        <association>Funnel</association>
+    </switch>
+ -->
+    
+    <switch>FE
+        <association>UpperShutterGate</association>
+        <translation>-5,5</translation>
+    </switch>
+    <switch>FG
+        <association>Gate</association>
+        <translation>-5,0</translation>
+    </switch>
+    <switch>FF
+        <association>LowerShutterGate</association>
+        <translation>-5,-5</translation>
+    </switch>
+
+    <gate display_name="">UpperShutterGate
+       <translation>0,5</translation>
+       <dimension>4,1</dimension>
+       <state>open
+          <translation>5,5</translation>
+       </state>
+    </gate>	
+    <gate display_name="">Gate
+       <dimension>4,1</dimension>
+       <translation>0,0</translation>
+       <state>open
+          <translation>5,0</translation>
+       </state>
+    </gate>
+    <gate display_name="">LowerShutterGate
+       <translation>0,-5</translation>
+       <dimension>4,1</dimension>
+       <state>open
+          <translation>5,-5</translation>
+       </state>
+    </gate>
+    
+    <funnel display_name="">Funnel
+      <translation>0,8</translation>
+      <dimension>4,5</dimension>
+      <state>open
+         <translation>0,-7</translation>
+         <dimension>4,20</dimension>
+      </state>
+    </funnel>		
+</root>

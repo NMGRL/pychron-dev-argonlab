@@ -1,0 +1,14 @@
+ - ratio: Ar40/Ar36
+   nanalyses: 5
+   threshold: 10
+#  nsigma: 3 
+   analysis_type: air
+   failure_count: 2
+   consecutive_failure: True
+ - ratio: Ar40/Ar39
+   nanalyses: 5
+   threshold: 2
+#  nsigma: 3
+   analysis_type: cocktail
+   failure_count: 2
+   consecutive_failure: True
