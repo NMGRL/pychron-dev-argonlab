@@ -7,6 +7,7 @@ Pychron_sim/logs
 Pychron_sim/setupfiles/spectrometer/_mftable_archive/
 Pychron_sim/setupfiles/spectrometer/felix_mftable_archive/
 Pychron_sim/setupfiles/client_secret.json
+Pychron_sim/experiments
 
 # Pulled production reference snapshot — read-only, never edited, not source
 hornblende_snapshot/
