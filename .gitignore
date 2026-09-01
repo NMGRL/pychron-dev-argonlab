@@ -21,3 +21,4 @@ update_alembic.ini
 launchers-Felix/
 launchers/helpers-Jan.py
 pychron/extraction_line/switch_manager-Jan.py
+projects/Pychron_sim/experiments
