@@ -26,6 +26,7 @@ from traits.api import Str, Any, Bool, Float, List, Int
 from pychron.globals import globalv
 from pychron.loggable import Loggable
 from pychron.pychron_constants import NULL_STR
+from pychron.core.ui.gui import invoke_in_main_thread
 
 
 class BaseSwitch(Loggable):
@@ -50,7 +51,7 @@ class BaseSwitch(Loggable):
         super(BaseSwitch, self).__init__(*args, **kw)
 
     def _state_changed(self):
-        self.last_actuation = datetime.now().isoformat()
+        invoke_in_main_thread(self.trait_set, last_actuation = datetime.now().isoformat())
 
     def set_state(self, state):
         self.state = bool(state)
@@ -63,11 +64,11 @@ class BaseSwitch(Loggable):
 
     def lock(self):
         self.debug("Locking")
-        self.software_lock = True
+        invoke_in_main_thread(self.trait_set, software_lock = True)
 
     def unlock(self):
         self.debug("Unlocking")
-        self.software_lock = False
+        invoke_in_main_thread(self.trait_set, software_lock = False)
 
     def get_hardware_state(self, **kw):
         return self.state

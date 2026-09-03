@@ -27,6 +27,7 @@ from pyface.ui_traits import PyfaceColor
 
 from pychron.core.helpers.formatting import floatfmt
 from pychron.core.ui.tabular_editor import myTabularEditor
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.graph.guide_overlay import GuideOverlay
 from .spectrometer_task import SpectrometerTask
 from ...paths import paths
@@ -110,8 +111,8 @@ class RiseRate(SpectrometerTask):
         self.result = 0
         self._start_time = self.graph.get_data()[-1]
         self._start_intensity = self._get_intensity()
-        self.graph.add_vertical_rule(self._start_time, color=self.start_color)
-        self.graph.redraw()
+        invoke_in_main_thread(self.graph.add_vertical_rule, self._start_time, color=self.start_color)
+        invoke_in_main_thread(self.graph.redraw)
 
     def _calculate_rise_rate(self):
         rise = self._get_intensity() - self._start_intensity

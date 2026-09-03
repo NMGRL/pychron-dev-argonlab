@@ -30,6 +30,7 @@ from traitsui.api import View, ListEditor, InstanceEditor, UItem, VGroup, HGroup
 
 # ============= local library imports  ==========================
 from pychron.core.helpers.filetools import unique_path2
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.dashboard.conditional import DashboardConditional
 from pychron.dashboard.process_value import ProcessValue
 from pychron.globals import globalv
@@ -37,6 +38,7 @@ from pychron.graph.stream_graph import StreamStackedGraph
 from pychron.hardware.core.i_core_device import ICoreDevice
 from pychron.loggable import Loggable
 from pychron.paths import paths
+
 
 
 class DashboardDevice(Loggable):
@@ -178,7 +180,8 @@ class DashboardDevice(Loggable):
 
     def _push_value(self, pv, new):
         if pv.enabled:
-            pv.last_time = time.time()
+            pv._last_time_raw = time.time()
+            invoke_in_main_thread(pv.trait_set, last_time=pv._last_time_raw)
 
             try:
                 v = float(new)
@@ -193,9 +196,9 @@ class DashboardDevice(Loggable):
             tripped = pv.is_different(v)
             if tripped:
                 self.update_value_event = (pv.name, new, pv.units)
-                # self.update_value_event = '{} {}'.format(pv.tag, new)
+                invoke_in_main_thread(pv.trait_set, last_value=pv._last_value_raw)
 
-            self.graph.record(v, plotid=pv.plotid)
+            invoke_in_main_thread(self.graph.record,v, plotid=pv.plotid)
             if pv.record:
                 self._record(pv, v)
 

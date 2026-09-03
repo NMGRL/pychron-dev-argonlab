@@ -16,7 +16,7 @@
 # ===============================================================================
 
 # ============= standard library imports ========================
-from threading import current_thread
+from threading import current_thread, main_thread 
 from typing import Any as TypingAny, Callable, Dict
 
 # ============= enthought library imports =======================
@@ -159,27 +159,47 @@ class Loggable(BaseFS):
     def warning_dialog(self, msg: str, sound=None, title: str = "Warning", **kw) -> None:
         self.warning(msg)
 
+        from pychron.core.ui.gui import invoke_in_main_thread
+
+        invoke_in_main_thread(self._show_warning_dialog, msg, title, **kw)
+
+    def _show_warning_dialog(self, msg, title, **kw):
         from pychron.core.ui.dialogs import myMessageDialog
 
         dialog = myMessageDialog(
             parent=None, message=str(msg), title=title, severity="warning", **kw
         )
-        #         if sound:
-        #             from pychron.core.helpers.media import loop_sound
-        #             evt = loop_sound(sound)
-        #             dialog.close = lambda: self._close_warning(evt)
-
-        #         from threading import current_thread
-        #         print current_thread()
         dialog.open()
 
     def confirmation_dialog(self, *args, **kw):
-        return confirmation_dialog(*args, **kw)
+        if current_thread() is main_thread():
+            return confirmation_dialog(*args, **kw)
+
+        from threading import Event
+        from pychron.core.ui.gui import invoke_in_main_thread
+
+        evt = Event()
+        result = {}
+        invoke_in_main_thread(self._confirmation_dialog, evt, result, args, kw)
+        evt.wait()
+        return result["retval"]
+
+    def _confirmation_dialog(self, evt, result, args, kw):
+        try:
+            result["retval"] = confirmation_dialog(*args, **kw)
+        finally:
+            evt.set()
 
     def information_dialog(self, msg: str, title: str = "Information", **kw) -> None:
+        self.info(msg)
+
+        from pychron.core.ui.gui import invoke_in_main_thread
+
+        invoke_in_main_thread(self._show_information_dialog, msg, title, **kw)
+
+    def _show_information_dialog(self, msg, title, **kw):
         from pychron.core.ui.dialogs import myMessageDialog
 
-        self.info(msg)
         dlg = myMessageDialog(
             parent=None, message=msg, title=title, severity="information", **kw
         )

@@ -24,6 +24,7 @@ import time
 
 # ============= local library imports  ==========================
 from pychron.core.helpers.timer import Timer as PTimer
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.loggable import Loggable
 
 
@@ -93,12 +94,12 @@ class Flag(Loggable):
             if self._monitor_evt:
                 self._monitor_evt.set()
 
-        self._set = value
+        invoke_in_main_thread(self.trait_set, _set=value)
         return True
 
     def clear(self):
         self.info("clearing flag")
-        self._set = False
+        invoke_in_main_thread(self.trait_set, _set=False)
         if self._monitor_evt:
             self._monitor_evt.set()
 

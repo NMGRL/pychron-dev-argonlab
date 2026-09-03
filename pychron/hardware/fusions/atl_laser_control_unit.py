@@ -27,6 +27,7 @@ from traits.api import Float, Int, Str, Bool, Property, Array
 from pychron.hardware.core.checksum_helper import computeBCC
 from pychron.hardware.core.core_device import CoreDevice
 from pychron.hardware.core.data_helper import make_bitarray
+from pychron.core.ui.gui import invoke_in_main_thread
 from six.moves import map
 from six.moves import range
 
@@ -380,16 +381,19 @@ class ATLLaserControlUnit(CoreDevice):
         if vs is not None:
             vs = self._parse_response(vs, 4)
             if vs is not None:
-                self.energy_readback = vs[0] / 10.0
-                self.energies = hstack((self.energies[:-5], [self.energy_readback]))
-
-                self.pressure_readback = vs[1]
-                self.status_readback = STATUS[vs[2]]
-                self.action_readback = ACTION[vs[3]]
+                energy = vs[0] / 10.0
+                invoke_in_main_thread(
+                    self.trait_set,
+                    energy_readback=energy,
+                    energies = hstack((self.energies[:-5], [energy])),
+                    pressure_readback = vs[1],
+                    status_readback = STATUS[vs[2]],
+                    action_readback = ACTION[vs[3]],
+                )
 
         b = self.get_nburst(verbose=False)
         if b is not None:
-            self.burst_readback = b
+            invoke_in_main_thread(self.trait_set, burst_readback = b)
             if self.firing:
                 self.debug(
                     "readback={} burst={} fired={}".format(

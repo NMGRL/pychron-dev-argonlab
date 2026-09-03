@@ -35,6 +35,7 @@ from pychron.graph.stream_graph import StreamStackedGraph
 from pychron.lasers.laser_managers.ilaser_manager import ILaserManager
 from pychron.loggable import Loggable
 from pychron.managers.data_managers.csv_data_manager import CSVDataManager
+from pychron.core.ui.gui import invoke_in_main_thread
 
 
 class ScannerController(Controller):
@@ -107,7 +108,7 @@ class Scanner(Loggable):
             self.static_values[name_or_idx] = (name, value)
 
         if plotid is not None:
-            self._graph.add_horizontal_rule(value, plotid=plotid)
+           invoke_in_main_thread(self._graph.add_horizontal_rule, value, plotid=plotid)
 
     def setup(self, directory=None, base_frame_name=None):
         self._directory = directory
@@ -238,14 +239,14 @@ class Scanner(Loggable):
         for args in setpoints:
             t = args[0]
             if self._scanning:
-                self.setpoint = t
+                invoke_in_main_thread(self.trait_set, setpoint = t)
                 self._set_power_hook(t)
 
                 self.set_static_value("Setpoint", t, plotid=0)
                 self._maintain_setpoint(t, *args[1:])
 
         if self._scanning:
-            self.setpoint = 0
+            invoke_in_main_thread(self.trait_set, setpoint = 0)
             self.set_static_value("Setpoint", 0)
             self._set_power_hook(0)
             # if self.manager:
@@ -293,8 +294,8 @@ class Scanner(Loggable):
                 v = float(func())
                 data.append(v)
 
-                # do_after no longer necessary with Qt
-                record(v, plotid=i, x=x, do_after=None)
+                
+                invoke_in_main_thread(record,v, plotid=i, x=x, do_after=None)
             except Exception as e:
                 print("exception", e)
 

@@ -27,6 +27,7 @@ from traits.api import Enum, Instance
 
 # =============local library imports  ==========================
 from pychron.core.helpers.strtools import to_csv_str
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.hardware.core.data_helper import make_bitarray
 from pychron.hardware.motion_controller import (
     MotionController,
@@ -326,10 +327,9 @@ class NewportMotionController(MotionController):
         if errx is None or erry is None:
             return "invalid position {},{}".format(x, y)
 
-        # tol = 0.0001  # should be set to the motion controllers resolution
-        # if d > tol:
+
         kw["displacement"] = d
-        self.parent.canvas.set_desired_position(x, y)
+        invoke_in_main_thread(self.parent.canvas.set_desired_position, x, y)
         self._x_position = x
         self._y_position = y
 
@@ -781,7 +781,7 @@ class NewportMotionController(MotionController):
                     return "At desired position. cur={} desired={}".format(o, value)
                 return "invalid position {}".format(value)
             if mode == "absolute":
-                self.parent.canvas.set_desired_position(x, y)
+                invoke_in_main_thread(self.parent.canvas.set_desired_position, x, y)
                 dx = self._x_position - self._sign_correct(x, "x")
                 dy = self._y_position - self._sign_correct(y, "y")
             else:
@@ -806,10 +806,11 @@ class NewportMotionController(MotionController):
         if not update:
             if mode == "absolute":
                 if x is not None and y is not None:
-                    self.parent.canvas.set_stage_position(x, y)
+                    invoke_in_main_thread(self.parent.canvas.set_stage_position, x, y)
                 else:
                     self._z_position = value
-                    self.z_progress = value
+                    self._z_progress_raw = value
+                    invoke_in_main_thread(self.trait_set, z_progress=value)
 
         self.debug("command={} block={}. kw={}".format(cmd, block, kw))
 
@@ -942,7 +943,7 @@ class NewportMotionController(MotionController):
         if block:
             self.debug("blocking {}".format(block))
             self._block(axis=block)
-        self.parent.canvas.clear_desired_position()
+        invoke_in_main_thread(self.parent.canvas.clear_desired_position)
 
     def _moving(self, axis=None, verbose=False):
         """
@@ -1028,7 +1029,7 @@ class NewportMotionController(MotionController):
             val = self.get_current_position(a)
             setattr(self, "_%s_position" % a, val)
 
-        self.parent.canvas.set_stage_position(self._x_position, self._y_position)
+        invoke_in_main_thread(self.parent.canvas.set_stage_position, self._x_position, self._y_position)
 
 
 class ESP301(NewportMotionController):

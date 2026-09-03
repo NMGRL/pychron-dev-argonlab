@@ -21,7 +21,7 @@ from traitsui.api import View, Item, Group, VGroup, TextEditor, UItem, Tabbed
 # =============standard library imports ========================
 
 # =============local library imports  ==========================
-
+from pychron.core.ui.gui import invoke_in_main_thread
 
 class ViewableDevice(HasTraits):
     """ """
@@ -177,16 +177,16 @@ class ViewableDevice(HasTraits):
         fmt = "%H:%M:%S"
         if self._last_timestamp:
             if now.day != self._last_timestamp.day:
-                fmt = "%m/%d %H:%M:%S"
+                fmt = "%m/%d %H:%M:%S"        
 
-        self.timestamp = now.strftime(fmt)
         self._last_timestamp = now
 
-        # print(self, cmd, r)
-        self.last_command = str(cmd)
-        self.last_response = str(r) if r else ""
-        # if self.auto_handle_response:
-        #     self.response_updated = {'value': self.last_response, 'command': self.last_command}
+        invoke_in_main_thread(
+            self.trait_set,
+            timestamp = now.strftime(fmt),
+            last_command = str(cmd),
+            last_response = str(r) if r else "", 
+        )
 
 
 # ============= EOF =====================================

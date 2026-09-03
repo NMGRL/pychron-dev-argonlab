@@ -157,7 +157,7 @@ class BaseSweep(SpectrometerTask):
 
     def _sweep(self, values, series=0, set_limits=True):
         if set_limits:
-            self.graph.set_x_limits(values[0], values[-1])
+            invoke_in_main_thread(self.graph.set_x_limits,values[0], values[-1])
 
         if self.spectrometer.simulation:
             channels = 1 + len(self.additional_detectors)
@@ -168,8 +168,7 @@ class BaseSweep(SpectrometerTask):
             if self._alive:
                 self._step(v)
                 intensity = self._step_intensity()
-                self._graph_hook(v, intensity, series)
-                # invoke_in_main_thread(self._graph_hook, v, intensity, series)
+                invoke_in_main_thread(self._graph_hook, v, intensity, series)
 
         return self._alive
 

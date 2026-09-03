@@ -24,6 +24,7 @@ import pickle
 import time
 
 # ============= local library imports  ==========================
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.consumer_mixin import ConsumerMixin
 from pychron.hardware.linear_mapper import LinearMapper
 from pychron.core.helpers.timer import Timer
@@ -39,6 +40,7 @@ class BaseLinearDrive(HasTraits, ConsumerMixin):
 
     data_position = Property(depends_on="_data_position")
     _data_position = Float
+    _data_position_raw = Float
 
     update_position = Float
 
@@ -156,9 +158,11 @@ class BaseLinearDrive(HasTraits, ConsumerMixin):
         if steps is not None:
             pos = self.linear_mapper.map_data(steps)
             pos = max(self.min, min(self.max, pos))
-            self.update_position = pos
+            traits = {"update_position": pos}
             if set_pos:
-                self._data_position = pos
+                self._data_position_raw = pos
+                traits["_data_position"] = pos 
+            invoke_in_main_thread(self.trait_set, **traits)
 
             self.debug(
                 "Load data position {} {} steps= {}".format(pos, self.units, steps)

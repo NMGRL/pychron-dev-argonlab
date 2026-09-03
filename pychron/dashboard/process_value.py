@@ -45,6 +45,8 @@ class ProcessValue(HasTraits):
     period = Either(Float, Str)  # "on_change" or number of seconds
     last_time = Float
     last_time_str = Property(depends_on="last_time")
+    _last_value_raw = 0.0
+    _last_time_raw = None 
     enabled = Bool
     last_value = Float
     timeout = Float
@@ -62,14 +64,10 @@ class ProcessValue(HasTraits):
         tt = 60 * 60  # max time (s) allowed without a measurement taken
         # even if the current value is the same as the last value
         threshold = self.change_threshold
-        if abs(self.last_value - v) > threshold or (
-            self.last_time and ct - self.last_time > tt
+        if abs(self._last_value_raw - v) > threshold or (
+            self._last_time_raw and ct - self._last_time_raw > tt
         ):
-            # a = abs(self.last_value - v) > threshold
-            # b = (self.last_time and ct - self.last_time > tt)
-            # self.debug('a={} {}-{}>{}, b={}'.format(a, self.last_value, v,threshold, b))
-
-            self.last_value = v
+            self._last_value_raw = v
             ret = True
 
         return ret

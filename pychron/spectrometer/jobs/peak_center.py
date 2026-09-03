@@ -128,16 +128,10 @@ class BasePeakCenter(HasTraits):
             if not self.isAlive():
                 break
 
-            self._reset_graph()
-
-            if i == 0:
-                self.graph.add_vertical_rule(
-                    self.center_dac, line_style="solid", color="black", line_width=1.5
-                )
-            else:
-                self.graph.add_vertical_rule(
-                    center, line_style="solid", color="black", line_width=1.5
-                )
+            invoke_in_main_thread(self._reset_graph)
+            invoke_in_main_thread(
+                self._add_center_rule, self.center_dac if i == 0 else center 
+            )
 
             start, end = self._get_scan_parameters(i, center, smart_shift)
 
@@ -145,6 +139,11 @@ class BasePeakCenter(HasTraits):
             if success:
                 invoke_in_main_thread(self._post_execute)
                 return center
+
+    def _add_center_rule(self, v):
+        self.graph.add_vertical_rule(
+            v, line_style="solid", color ="black", line_width=1.5
+        )
 
     def get_result(self, detname):
         for i, det in enumerate(self.active_detectors):
@@ -290,9 +289,7 @@ class BasePeakCenter(HasTraits):
             xs, ys, mx, my = result
 
             center, success = xs[1], True
-            # invoke_in_main_thread(self._plot_center, xs, ys, mx, my, center)
-            self._plot_center(xs, ys, mx, my, center)
-            # if self.calculate_all_peaks:
+            invoke_in_main_thread(self._plot_center, xs, ys, mx, my, center)
             self.results = self.get_results()
 
             return center, success
@@ -317,7 +314,7 @@ class BasePeakCenter(HasTraits):
                     if self._alive:
                         self._step(si)
                         intensity = self._step_intensity()
-                        self._graph_hook(si, intensity, series)
+                        invoke_in_main_thread(self._graph_hook, si, intensity, series)
                 return self._alive
 
     def _get_result(self, i, det):

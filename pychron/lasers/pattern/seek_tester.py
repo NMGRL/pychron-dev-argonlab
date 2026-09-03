@@ -33,7 +33,7 @@ from pychron.graph.graph import Graph
 # from pychron.lasers.pattern.dragonfly_pattern import dragonfly, DragonFlyPattern
 from pychron.lasers.pattern.pattern_executor import CurrentPointOverlay
 from pychron.mv.lumen_detector import LumenDetector
-
+from pychron.core.ui.gui import invoke_in_main_thread
 
 class LM:
     def __init__(self):
@@ -111,7 +111,7 @@ class SeekTester(HasTraits):
         while self.alive:
             x, y = self._get_xy(cnt)
             frm = self._frame(x, y)
-            p.data.set_data("imagedata", frm)
+            invoke_in_main_thread(p.data.set_data, "imagedata", frm)
             lm.stage_manager.frame = frm
             time.sleep(0.25)
             cnt += 1

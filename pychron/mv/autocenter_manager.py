@@ -35,6 +35,7 @@ from traitsui.api import View, Item, HGroup, RangeEditor
 from math import ceil
 
 from pychron.core.yaml import yload
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.image.standalone_image import FrameImage
 from pychron.mv.machine_vision_manager import MachineVisionManager, view_image
 from pychron.paths import paths
@@ -90,17 +91,7 @@ class AutoCenterManager(MachineVisionManager):
 
     configure_button = Button("configure")
     use_autocenter = Bool
-    # use_hough_circle = Bool(False)
-
-    # use_adaptive_threshold = Bool(False)
-    # blur = Int
-    # stretch_intensity = Bool(False)
-    # search_step = Int
-    # search_n = Int
-    # search_width = Int
-    # blocksize = Int
-    # blocksize_step = Int
-
+ 
     selected_configuration = Instance(AutoCenterConfig, ())
     configuration_names = List
     configuration_name = Str
@@ -113,14 +104,6 @@ class AutoCenterManager(MachineVisionManager):
 
     def bind_preferences(self, pref_id):
         bind_preference(self, "use_autocenter", "{}.use_autocenter".format(pref_id))
-        # bind_preference(self, 'blur', '{}.autocenter_blur'.format(pref_id))
-        # bind_preference(self, 'stretch_intensity', '{}.autocenter_stretch_intensity'.format(pref_id))
-        # bind_preference(self, 'use_adaptive_threshold', '{}.autocenter_use_adaptive_threshold'.format(pref_id))
-        # bind_preference(self, 'search_step', '{}.autocenter_search_step'.format(pref_id))
-        # bind_preference(self, 'search_n', '{}.autocenter_search_n'.format(pref_id))
-        # bind_preference(self, 'search_width', '{}.autocenter_search_width'.format(pref_id))
-        # bind_preference(self, 'blocksize', '{}.autocenter_blocksize'.format(pref_id))
-        # bind_preference(self, 'blocksize_step', '{}.autocenter_blocksize_step'.format(pref_id))
 
     def cancel(self):
         self.debug("canceling")
@@ -139,21 +122,14 @@ class AutoCenterManager(MachineVisionManager):
         )
         cropdim = ceil(dim * 2.55)
 
-        # if self.offsetx or self.offsety:
-        #     offx,offy = self.offsetx, self.offsety
-        # frame = loc.rescale(frame, 1.5)
         frame = loc.crop(frame, cropdim, cropdim, offx, offy)
 
         dim = self.pxpermm * dim
 
-        im = self.display_image
-        self.display_image.clear()
-        im.source_frame = frame
-
         config = self.selected_configuration
 
-        dx, dy = loc.find(
-            im,
+        dx, dy, src = loc.find(
+            None,
             frame,
             dim=dim,
             preprocess=config.preprop,
@@ -161,11 +137,11 @@ class AutoCenterManager(MachineVisionManager):
             inverted=config.inverted,
             **kw
         )
+        invoke_in_main_thread(self._update_display_image, frame, src)
 
         if dx is None and dy is None:
             return
         else:
-            # pdx, pdy = round(dx), round(dy)
             mdx = dx / self.pxpermm * self.x_correction_sign
             mdy = dy / self.pxpermm * self.y_correction_sign
             self.info(
@@ -174,6 +150,16 @@ class AutoCenterManager(MachineVisionManager):
             )
 
             return cx + mdx, cy + mdy
+
+    def _update_display_image(self, frame, src):
+        self.display_image.clear()
+        display_frame = src if src is not None else frame 
+        self.display_image.source_frame = display_frame
+        if src is not None:
+            self.display_image.tile(display_frame)
+        if self.use_tile:
+            self.display_image.tilify()
+        self.display_image.refresh_needed = True 
 
     # private
     def _load_configuration(self):

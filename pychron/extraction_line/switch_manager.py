@@ -30,6 +30,7 @@ from traits.api import Any, Dict, List, Bool, Event, Str
 from pychron.core.helpers.iterfuncs import groupby_key
 from pychron.core.helpers.strtools import to_bool, streq
 from pychron.core.yaml import yload
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.extraction_line import VERBOSE_DEBUG, VERBOSE
 from pychron.extraction_line.pipettes.tracking import PipetteTracker
 from pychron.globals import globalv
@@ -905,7 +906,7 @@ class SwitchManager(Manager):
 
         # update actuation tracker
         if changed:
-            self.refresh_explanation = True
+            invoke_in_main_thread(setattr, self, "refresh_explanation", True)
             if v.track_actuation:
                 self._update_actuation_tracker(v)
 

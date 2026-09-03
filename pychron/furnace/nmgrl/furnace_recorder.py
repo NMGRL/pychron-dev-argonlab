@@ -6,7 +6,9 @@ from pychron.furnace.nmgrl.furnace_controller import NMGRLFurnaceController
 from pychron.graph.time_series_graph import TimeSeriesStreamStackedGraph
 from pychron.managers.stream_graph_manager import StreamGraphManager
 from pychron.paths import paths
+from pychron.core.ui.gui import invoke_in_main_thread
 from traitsui.api import View, UItem, Item, HGroup, VGroup
+
 
 
 class SimpleFurnace(StreamGraphManager):
@@ -55,14 +57,13 @@ class SimpleFurnace(StreamGraphManager):
         if d:
             state = d.get("h2o_state")
             if state in (0, 1):
-                # self.water_flow_led.state = 2 if state else 0
-                self.water_flow_state = 2 if state else 0
+                water_flow_state = 2 if state else 0
             else:
-                self.water_flow_state = 1
+                water_flow_state = 1
 
             write_water_state = (
                 self._recorded_flow_state is None
-                or self._recorded_flow_state != self.water_flow_state
+                or self._recorded_flow_state != water_flow_state
             )
 
             if write_water_state:
@@ -74,12 +75,14 @@ class SimpleFurnace(StreamGraphManager):
 
             response = d.get("response")
             output = d.get("output")
+            readback_kw = {"water_flow_state": water_flow_state}
             if response is not None:
-                self.temperature_readback = response
+                readback_kw["temperature_readback"] = response
             if output is not None:
-                self.output_percent_readback = output
+                readback_kw["output_percent_readback"] = output
+            invoke_in_main_thread(self.trait_set, **readback_kw)
 
-            self._update_scan_graph(response, output, d["setpoint"])
+            invoke_in_main_thread(self._update_scan_graph,response, output, d["setpoint"])
 
     def _update_scan_graph(self, response, output, setpoint):
         x = None

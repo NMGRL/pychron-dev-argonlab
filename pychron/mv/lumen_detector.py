@@ -130,6 +130,7 @@ class LumenDetector(Locator):
     _cached_mask_value = None
     grain_measuring = False
     active_targets = None
+    last_target_frame = None
     _target = None
 
     def __init__(self, *args, **kw):
@@ -228,8 +229,9 @@ class LumenDetector(Locator):
             if targets:
                 targets = sorted(targets, key=attrgetter("area"))
                 self.active_targets = targets
-                if image is not None:
-                    self._draw_targets(image.source_frame, targets)
+                annotated = image.source_frame if image is not None else src
+                self._draw_targets(annotated, targets)
+                self.last_target_frame = annotated
                 return targets
 
     def find_lum_peak(self, lum, dim, mask_dim, min_distance=5, blur=0):

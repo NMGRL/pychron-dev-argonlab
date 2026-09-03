@@ -27,7 +27,7 @@ from pychron.hardware.eurotherm.base import pid_parameters_path
 from pychron.managers.stream_graph_manager import StreamGraphManager
 from pychron.paths import paths
 from pychron.response_recorder import ResponseRecorder
-
+from pychron.core.ui.gui import invoke_in_main_thread
 
 class BaseFurnaceManager(StreamGraphManager):
     controller_klass = None
@@ -221,13 +221,15 @@ class BaseFurnaceManager(StreamGraphManager):
 
     def _update_scan(self):
         response = self.controller.get_process_value(verbose=False)
-        self.temperature_readback = response or 0
-
         output = self.controller.get_output(verbose=False)
-        self.output_percent_readback = output or 0
-
+        invoke_in_main_thread(
+            self.trait_set,
+            temperature_readback = response or 0,
+            output_percent_readback = output or 0,
+        )
+        
         setpoint = self.controller.get_setpoint(verbose=False)
-        self._set_scan_graph_values(response, output, setpoint or 0)
+        invoke_in_main_thread(self._set_scan_graph_values,response, output, setpoint or 0)
 
     def _set_scan_graph_values(self, response, output, setpoint):
         x = None

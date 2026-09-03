@@ -17,11 +17,13 @@ from traits.api import Float, Event, Bool, Property, Int, HasTraits, Instance
 from traitsui.api import View, Item, UItem, ButtonEditor, HGroup, VGroup
 
 from pychron.core.ui.lcd_editor import LCDEditor
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.graph.stream_graph import StreamGraph
 from pychron.hardware import get_float, get_boolean
 from pychron.hardware.OnOffMixin import OnOffMixin
 from pychron.hardware.core.core_device import CoreDevice
 from pychron.hardware.core.modbus import ModbusMixin
+
 
 
 class HeaterMixin(OnOffMixin):
@@ -65,8 +67,8 @@ class HeaterMixin(OnOffMixin):
         if self.onoff_state:
             v = self.read_readback()
             if v is not None:
-                self.readback = v
-                self.graph.record(v)
+                invoke_in_main_thread(self.trait_set, readback = v)
+                invoke_in_main_thread(self.graph.record, v)
 
     def _use_pid_changed(self, v):
         self.debug("set use_pid={}".format(v))

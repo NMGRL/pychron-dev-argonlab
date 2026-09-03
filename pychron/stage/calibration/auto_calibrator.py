@@ -158,13 +158,12 @@ class SemiAutoCalibrator(TrayCalibrator):
 
             if rot is None:
                 self.warning("failed calculating rotation")
-                self.calibration_step = "Calibrate"
+                invoke_in_main_thread(self.trait_set, calibration_step = "Calibrate")
                 return
 
             # set rotation
-            calibration.rotation = rot
-            self.rotation = rot
-            self.save_event = {"clear_corrections": False}
+            invoke_in_main_thread(calibration.trait_set, rotation = rot)
+            invoke_in_main_thread(self.trait_set, rotation = rot, save_event = {"clear_corrections": False})
 
             if self.full_traversal:
                 holes = smap.all_holes()
@@ -283,8 +282,7 @@ class SemiAutoCalibrator(TrayCalibrator):
             invoke_in_main_thread(open_view, sv)
         self.debug(f"calibration time={time.time()-st:0.3f}s")
         # reset calibration manager
-        self.calibration_step = "Calibrate"
-        self.calibration_enabled = True
+        invoke_in_main_thread(self.trait_set, calibration_step = "Calibrate", calibration_enabled = True)
 
     def _autocenter(self, hi, guess=None):
         self.debug("autocentering hole={}, guess={}".format(hi.id, guess))
@@ -371,8 +369,7 @@ class AutoCalibrator(SemiAutoCalibrator):
                 "Failed to located center hole. Try SemiAutoCalibration",
             )
             self._warned = False
-            self.calibration_step = "Calibrate"
-            self.calibration_enabled = True
+            invoke_in_main_thread(self.trait_set, calibration_step = "Calibrate", calibration_enabled = True )
         else:
             super(AutoCalibrator, self)._auto_calibrate(calibration)
 

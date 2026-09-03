@@ -22,6 +22,7 @@ from pychron.graph.time_series_graph import TimeSeriesStreamStackedGraph
 from pychron.hardware.bakeout_plc import BakeoutPLC
 from pychron.loggable import Loggable
 from pychron.managers.stream_graph_manager import StreamGraphManager
+from pychron.core.ui.gui import invoke_in_main_thread
 
 
 class BakeoutManager(StreamGraphManager):
@@ -61,19 +62,19 @@ class BakeoutManager(StreamGraphManager):
             t = self.controller.read_temperature(ci.index)
             if t is None:
                 continue
-
+           
             sp = self.controller.read_setpoint(ci.index)
             dc = self.controller.read_duty_cycle(ci.index)
             self.controller.read_overtemp_ishighhigh(ci.index)
-
-            self.graph.record(t, series=ci.index)
-            self.graph.record(sp, series=ci.index + 1)
-            self.graph.record(dc, plotid=1, series=ci.index)
+            invoke_in_main_thread(self._record_channel, ci.index, t, sp, dc)
+            
+    def _record_channel(self, index, t, sp, dc):
+        self.graph.record(t, series=index)
+        self.graph.record(sp, series=index + 1)
+        self.graph.record(dc, plotid=1, series=index)
 
     def _graph_factory(self, *args, **kw):
         g = TimeSeriesStreamStackedGraph()
-        # g.plotcontainer.padding_top = 5
-        # g.plotcontainer.padding_right = 5
         g.new_plot(
             xtitle="Time (s)",
             ytitle="Temp. (C)",

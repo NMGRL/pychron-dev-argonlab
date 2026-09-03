@@ -21,11 +21,14 @@ from traitsui.api import HGroup, VGroup, Item, spring, ButtonEditor
 import os
 import time
 from threading import Lock
+from functools import partial 
 
 # ============= local library imports  ==========================
 from pychron.core.helpers.datetime_tools import generate_datetimestamp
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.database.data_warehouse import DataWarehouse
 from pychron.graph.plot_record import PlotRecord
+from pychron.graph.stream_graph import time_generator
 from pychron.hardware.core.alarm import Alarm
 from pychron.hardware.core.viewable_device import ViewableDevice
 from pychron.managers.data_managers.csv_data_manager import CSVDataManager
@@ -58,6 +61,7 @@ class ScanableDevice(ViewableDevice):
 
     data_manager = Instance(CSVDataManager)
     time_dict = dict(ms=1, s=1000, m=60000, h=3600000)
+    _record_time_generator = None 
 
     _scanning = Bool(False)
     _auto_started = False
@@ -126,31 +130,29 @@ class ScanableDevice(ViewableDevice):
                 return
 
             if v is not None:
-                # self.debug('current scan value={}'.format(v))
-                self.current_scan_value = str(v)
-
-                # self.debug('current scan func={}, value ={}'.format(self.scan_func, v))
+                invoke_in_main_thread(self.trait_set, current_scan_value = str(v))
 
                 x = None
                 if self.graph_scan_data:
+                    graph_calls = []
                     if isinstance(v, tuple):
-                        x = self.graph.record_multiple(v)
+                        graph_calls.append(partial(self.graph.record_multiple, v))
                     elif isinstance(v, PlotRecord):
                         for pi, d in zip(v.plotids, v.data):
                             if isinstance(d, tuple):
-                                x = self.graph.record_multiple(d, plotid=pi)
+                                graph_calls.append(partial(self.graph.record_multiple, d, plotid=pi))
                             else:
-                                x = self.graph.record(d, plotid=pi)
+                                graph_calls.append(partial(self.graph.record, d, plotid=pi))
                         v = v.as_data_tuple()
-
                     else:
-                        x = self.graph.record(v)
+                        graph_calls.append(partial(self.graph.record, v))
                         v = (v,)
+
+                    invoke_in_main_thread(self._run_graph_calls, graph_calls)
 
                 if self.record_scan_data:
                     self.debug("recording scan data")
-                    if x is None:
-                        x = time.time()
+                    x = next(self._record_time_generator)
 
                     ts = generate_datetimestamp()
                     self.data_manager.write_to_frame(
@@ -160,21 +162,19 @@ class ScanableDevice(ViewableDevice):
                 self._scan_hook(v)
 
             else:
-                """
-                scan func must return a value or we will stop the scan
-                since the timer runs on the main thread any long comms timeouts
-                slow user interaction
-                """
                 if self._no_response_counter > 3:
                     self.timer.Stop()
                     self.info(
                         "no response. stopping scan func={}".format(self.scan_func)
                     )
-                    self._scanning = False
+                    invoke_in_main_thread(self.trait_set, _scanning = False)
                     self._no_response_counter = 0
-
                 else:
                     self._no_response_counter += 1
+
+    def _run_graph_calls(self, calls):
+        for c in calls:
+            c()
 
     def should_update(self):
         """
@@ -232,6 +232,7 @@ class ScanableDevice(ViewableDevice):
 
             dm.new_frame(base_frame_name=self.name, directory=dw.get_current_dir())
             self.scan_path = dm.get_current_path()
+            self._record_time_generator = time_generator(0)
 
         if period is None:
             period = self.scan_period * self.time_dict[self.scan_units]

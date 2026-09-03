@@ -13,7 +13,7 @@
 
   ROOT=$HOME/Documents/codes/pychron/codebase
   export PYTHONPATH=$ROOT
-  export PYCHRON_REPLAY_REPO_DIR=$SIM/hornblende_snapshot/repos/Felix_blank260
+  export PYCHRON_REPLAY_REPO_DIR=$ROOT/projects/headless_simulation/hornblende_snapshot/repos/Felix_blank260
   export PYCHRON_REPLAY_UUID=6ba7b8e3-2e89-4425-900b-078c82a45837
 
   export PYCHRON_TIMER_PROBE=1

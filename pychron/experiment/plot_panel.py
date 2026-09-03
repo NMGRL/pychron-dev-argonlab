@@ -154,11 +154,13 @@ class PlotPanel(Loggable):
     def set_peak_center_graph(self, graph):
         graph.page_name = "Peak Center"
         self.peak_center_graph = graph
+        invoke_in_main_thread(self._update_peak_center_graphs, graph)
 
+    def _update_peak_center_graphs(self, graph):
         for i, g in enumerate(self.graphs):
               if g.page_name == "Peak Center":
-                  del self.graphs[i]
-                  break
+                del self.graphs[i]
+                break
 
         self.graphs.append(graph)
         self.show_graph(graph)

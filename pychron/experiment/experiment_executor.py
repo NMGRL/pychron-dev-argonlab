@@ -187,6 +187,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
     connectables = List
     active_editor = Any
     console_bgcolor = "black"
+    console_default_color = "green"
     selected_run = Instance(
         "pychron.experiment.automated_run.spec.AutomatedRunSpec",
     )
@@ -1010,7 +1011,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
         self._show_conditionals(*args, **kw)
 
     def refresh_table(self, *args, **kw):
-        self.experiment_queue.refresh_table_needed = True
+        invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
     def abort_run(self):
         self.debug("abort run. Executor.isAlive={}".format(self.is_alive()))
@@ -1281,7 +1282,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
             self._set_executor_terminal_result(
                 self._current_terminal_result(), reason=self._err_message or None
             )
-            self.alive = False
+            invoke_in_main_thread(setattr, self, "alive", False)
         finally:
             try:
                 from pychron.core.helpers.power_assertion import release as _pm_release
@@ -1815,7 +1816,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
                     self._controller.remove_run_machine(run_id)
                 elif action == "refresh_queue_table":
                     self._set_thread_name(self.experiment_queue.name)
-                    self.experiment_queue.refresh_table_needed = True
+                    invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
         finally:
             self._mark_progress(
                 "run.end",
@@ -1919,7 +1920,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
                 # stop queue
                 if style == "queue":
                     self._controller.request_cancel()
-                    self.alive = False
+                    invoke_in_main_thread(setattr, self, "alive", False)
                     self.debug("Queue cancel. stop timer")
                     invoke_in_main_thread(self.stats.stop_timer)
 
@@ -2057,7 +2058,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
             run.set_integration_time(dit)
 
         if not run.start():
-            self.alive = False
+            invoke_in_main_thread(setattr, self, "alive", False)
             ret = False
             run.spec.transition("fail", force=True, source="pre_execute_check")
             self._controller.mark_run_started(self._get_run_subject_id(run), failed=True)
@@ -2290,7 +2291,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
             run.spec.transition("fail", force=True, source="device_communication_failure")
             self._transition_run_failure(run, msg)
         self._controller.run_failure(reason=msg)
-        self.alive = False
+        invoke_in_main_thread(setattr, self, "alive", False)
         return False
 
     def _failed_execution_step(self, msg: str) -> bool:
@@ -2299,7 +2300,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
             self.heading(msg)
             self._err_message = msg
             self._controller.run_failure(reason=msg)
-            self.alive = False
+            invoke_in_main_thread(setattr, self, "alive", False)
         return False
 
     # ===============================================================================
@@ -3237,7 +3238,7 @@ class ExperimentExecutor(Consoleable, PreferenceMixin):
                 info = cr.edit_traits(kind="livemodal")
                 if info.result:
                     cr.apply()
-                    self.experiment_queue.refresh_table_needed = True
+                    invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
                     return True
             else:
                 return True

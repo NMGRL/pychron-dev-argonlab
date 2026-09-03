@@ -47,6 +47,7 @@ from pychron.canvas.utils import load_holder_canvas
 from pychron.core.helpers.filetools import view_file
 from pychron.core.helpers.iterfuncs import groupby_key
 from pychron.core.helpers.traitsui_shortcuts import okcancel_view
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.core.pdf.pdf_graphics_context import PdfPlotGraphicsContext
 from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.core.ui.preference_binding import bind_preference
@@ -1267,7 +1268,7 @@ class LoadingManager(DVCIrradiationable):
         if new is not None:
 
             def update(pos):
-                self.focus_position_readback = pos
+                invoke_in_main_thread(self.trait_set, focus_position_readback = pos)
 
             self.focus_motor.set_position(
                 new, use_absolute=True, block=False, update=update

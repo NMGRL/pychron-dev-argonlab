@@ -18,12 +18,14 @@ from traits.api import Instance, Float
 from traitsui.api import View, UItem, HGroup, VGroup, ButtonEditor
 
 import time
+from threading import Event
 
 from pychron.execute_mixin import ExecuteMixin
 from pychron.graph.stream_graph import StreamStackedGraph
 from pychron.loggable import Loggable
 from pychron.managers.data_managers.csv_data_manager import CSVDataManager
 from pychron.paths import paths
+from pychron.core.ui.gui import invoke_in_main_thread
 
 
 class MeltingPointCalibrator(Loggable, ExecuteMixin):
@@ -35,15 +37,25 @@ class MeltingPointCalibrator(Loggable, ExecuteMixin):
     def setup(self):
         self.record_data_manager = CSVDataManager()
         self.record_data_manager.new_frame(directory=paths.device_scan_dir)
-        self.graph = StreamStackedGraph()
-        self.graph.new_plot()
-        self.graph.new_series()
-        self.graph.new_plot()
-        self.graph.new_series(plotid=1)
 
-        dl = 1.8 * 600
-        self.graph.set_data_limits(dl)
-        self.graph.set_scan_widths(600)
+        evt = Event()
+        invoke_in_main_thread(self._build_graph, evt)
+        if not evt.wait(timeout=5):
+            raise RuntimeError("timed out building graph")
+
+    def _build_graph(self, evt):
+        try:
+            self.graph = StreamStackedGraph()
+            self.graph.new_plot()
+            self.graph.new_series()
+            self.graph.new_plot()
+            self.graph.new_series(plotid=1)
+
+            dl = 1.8 * 600
+            self.graph.set_data_limits(dl)
+            self.graph.set_scan_widths(600)
+        finally:
+            evt.set()
 
     def _do_execute(self):
         self.setup()
@@ -69,8 +81,8 @@ class MeltingPointCalibrator(Loggable, ExecuteMixin):
         self._graph(t, intensity, temperature)
 
     def _graph(self, t, intensity, temperature):
-        self.graph.record(intensity, x=t, plotid=0, track_x=True, track_y=True)
-        self.graph.record(temperature, x=t, plotid=1, track_x=True, track_y=True)
+        invoke_in_main_thread(self.graph.record, intensity, x=t, plotid=0, track_x=True, track_y=True)
+        invoke_in_main_thread(self.graph.record, temperature, x=t, plotid=1, track_x=True, track_y=True)
 
     def _record(self, t, intensity, temperature):
         self.record_data_manager.write_to_frame((t, intensity, temperature))

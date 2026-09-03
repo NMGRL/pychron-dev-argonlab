@@ -350,7 +350,9 @@ class ExtractionLineManager(Manager, Consoleable):
         pass
 
     def refresh_canvas(self):
-        # self.debug('refresh canvas')
+        invoke_in_main_thread(self._refresh_canvas)
+
+    def _refresh_canvas(self):
         for ci in self.canvases:
             ci.refresh()
 
@@ -480,10 +482,13 @@ class ExtractionLineManager(Manager, Consoleable):
 
         state = self.build_canvas_state(snapshot=snapshot)
         self.canvas_state = state
+        invoke_in_main_thread(self._apply_canvas_state, state, refresh=refresh)
+        return state
+
+    def _apply_canvas_state(self, state, refresh):
         self.canvas_view_model.set_state(state)
         for canvas in self.canvases:
             canvas.apply_canvas_state(state, refresh=refresh)
-        return state
 
     def finish_loading(self) -> None:
         if self.use_network:
@@ -508,24 +513,11 @@ class ExtractionLineManager(Manager, Consoleable):
                 self._set_pipette_counts(p.name, p.counts)
 
         self._reload_canvas_hook()
-
         self.push_canvas_state(refresh=True)
-        self.refresh_canvas()
 
     def reload_scene_graph(self):
         self.info("reloading canvas scene")
-        for c in self.canvases:
-            # c.load_canvas_file(c.config_name)
-
-            c.load_canvas_file()
-            if self.switch_manager:
-                for k, v in self.switch_manager.switches.items():
-                    vc = c.get_object(k)
-                    if vc:
-                        vc.soft_lock = v.software_lock
-                        vc.state = v.state
-
-            self.canvas_editor.load(c.canvas2D, self.canvas_path)
+        invoke_in_main_thread(self._reload_scene_graph)
         self.push_canvas_state(refresh=True)
 
     def update_switch_state(self, name, state, *args, refresh: bool = True, **kw) -> None:
@@ -1114,7 +1106,6 @@ class ExtractionLineManager(Manager, Consoleable):
                 v.unlock()
 
             self.update_switch_lock_state(name, action)
-            self.refresh_canvas()
             return True
 
     def _open_close_valve(self, name, action, description=None, address=None, mode="remote", **kw):
@@ -1395,6 +1386,18 @@ class ExtractionLineManager(Manager, Consoleable):
 
         if self.console_display:
             self.console_display.add_text(msg, color=color)
+
+    def _reload_scene_graph(self):
+        for c in self.canvases:
+            c.load_canvas_file()
+            if self.switch_manager:
+                for k, v in self.switch_manager.switches.items():
+                    vc = c.get_object(k)
+                    if vc:
+                        vc.soft_lock = v.software_lock
+                        vc.state = v.state
+
+            self.canvas_editor.load(c.canvas2D, self.canvas_path)
 
     # ===============================================================================
     # factories

@@ -174,7 +174,9 @@ class FigureModel(HasTraits):
                     figure.graph_id = panel.graph_id
             if titles:
                 if index < len(titles):
-                    panel.title = titles[index]
+                    new_title = titles[index]
+                    if panel.title != new_title:
+                        panel.title = new_title
             elif self.plot_options.auto_generate_title:
                 panel.title = self.plot_options.generate_title(panel.analyses, index)
 

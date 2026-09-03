@@ -117,7 +117,7 @@ class HopsAction(ListAction):
                 invoke_in_main_thread(prog.change_message, msg)
             except Empty:
                 pass
-        prog.close()
+        invoke_in_main_thread(prog.close)
 
     def _perform(self, app, ncycles, hops, msg_queue):
         ion = app.get_service(

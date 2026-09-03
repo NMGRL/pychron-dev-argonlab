@@ -28,6 +28,7 @@ from pychron.canvas.canvas2D.video_canvas import VideoCanvas
 from pychron.core.helpers.filetools import pathtolist
 from pychron.core.progress import open_progress
 from pychron.core.yaml import yload
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.experiment import ExtractionException
 from pychron.furnace.base_furnace_manager import (
     BaseFurnaceManager,
@@ -225,7 +226,7 @@ class NMGRLFurnaceManager(SwitchableFurnaceManager):
             check = self.loader_logic.check("AM")
 
         if check:
-            self.status_txt = "Actuating Magnets"
+            invoke_in_main_thread(self.trait_set, status_txt="Actuating Magnets")
 
             self.stage_manager.feeder.start_jitter()
             self.dumper.energize()
@@ -248,26 +249,26 @@ class NMGRLFurnaceManager(SwitchableFurnaceManager):
             self._dump_sample_states()
 
             self.dumper.denergize()
-            # time.sleep(5)
 
             self.stage_manager.feeder.stop_jitter()
-            self.status_txt = ""
+            invoke_in_main_thread(self.trait_set, status_txt = "")
         else:
             cm = self.loader_logic.get_check_message()
             self.warning_dialog("Actuating magnets not enabled\n\n{}".format(cm))
 
         self._magnets_thread = None
-        self.magnets_firing = False
+        invoke_in_main_thread(self.trait_set, magnets_firing = False)
 
     def lower_funnel(self):
         self.debug("lower funnel")
         if self.loader_logic.check("FD"):
-            self.status_txt = "Lowering Funnel"
-            self.funnel_down_enabled = False
+            invoke_in_main_thread(
+                self.trait_set, status_txt = "Lowering Funnel", funnel_down_enabled = False,
+            )
             self.funnel.lower()
-            self.funnel_up_enabled = True
-            self.dumper_canvas.set_item_state("Funnel", True)
-            self.status_txt = ""
+            invoke_in_main_thread(self.trait_set, funnel_up_enabled = True)
+            invoke_in_main_thread(self.dumper_canvas.set_item_state, "Funnel", True)
+            invoke_in_main_thread(self.trait_set, status_txt = "")
             return True
         else:
             cm = self.loader_logic.get_check_message()
@@ -276,12 +277,13 @@ class NMGRLFurnaceManager(SwitchableFurnaceManager):
     def raise_funnel(self, force=False):
         self.debug("raise funnel. force={}".format(force))
         if self.loader_logic.check("FU") or force:
-            self.status_txt = "Raising Funnel"
-            self.funnel_up_enabled = False
+            invoke_in_main_thread(
+                self.trait_set, status_txt = "Raising Funnel", funnel_up_enabled = False
+            )
             self.funnel.raise_()
-            self.funnel_down_enabled = True
-            self.dumper_canvas.set_item_state("Funnel", False)
-            self.status_txt = ""
+            invoke_in_main_thread(self.trait_set, funnel_down_enabled = True)
+            invoke_in_main_thread(self.dumper_canvas.set_item_state, "Funnel", False)
+            invoke_in_main_thread(self.trait_set, status_txt = "")
             return True
         else:
             cm = self.loader_logic.get_check_message()
@@ -389,7 +391,7 @@ class NMGRLFurnaceManager(SwitchableFurnaceManager):
             new = [new]
 
         for ni in new:
-            self.dumper_canvas.update_switch_state(*ni)
+            invoke_in_main_thread(self.dumper_canvas.update_switch_state, *ni)
 
     def _open_logic(self, name):
         """

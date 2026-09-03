@@ -21,6 +21,7 @@ import time
 from traits.api import List, Float, Bool
 
 from pychron.core.helpers.strtools import to_bool
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.globals import globalv
 from pychron.hardware import get_float
 from pychron.spectrometer.base_magnet import BaseMagnet
@@ -58,10 +59,10 @@ class ThermoMagnet(BaseMagnet):
         #     return
         if verbose:
             self.debug("setting magnet DAC")
-            self.debug("current  : {:0.6f}".format(self._dac))
+            self.debug("current  : {:0.6f}".format(self._dac_raw))
             self.debug("requested: {:0.6f}".format(v))
 
-        dv = abs(self._dac - v)
+        dv = abs(self._dac_raw - v)
         if verbose:
             self.debug("Delta Dac: {:0.6f}".format(dv))
 
@@ -156,7 +157,8 @@ class ThermoMagnet(BaseMagnet):
                         self.debug("Unblank beam")
                     self.ask("BlankBeam False", verbose=verbose)
 
-        self._dac = v
+        self._dac_raw = v
+        invoke_in_main_thread(self.trait_set, _dac=v)
 
         if globalv.experiment_debug:
             change = True

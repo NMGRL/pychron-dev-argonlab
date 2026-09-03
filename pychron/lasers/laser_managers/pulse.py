@@ -94,7 +94,7 @@ class Pulse(HasTraits):
         )
 
     def start(self):
-        self._duration_changed()
+        invoke_in_main_thread(self._duration_changed)
 
         #         evt = TEvent()
         man = self.manager
@@ -102,7 +102,7 @@ class Pulse(HasTraits):
             # man.enable_laser()
             resp = man.set_laser_power(self.power)
             if resp is False:
-                self.pulsing = False
+                invoke_in_main_thread(self.trait_set, pulsing = False)
                 self.trait_set(duration=0, trait_change_notify=False)
                 return
 
@@ -112,7 +112,7 @@ class Pulse(HasTraits):
         )
         done.wait()
 
-        self.pulsing = False
+        invoke_in_main_thread(self.trait_set, pulsing = False)
         if man is not None:
             if self.disable_at_end:
                 man.disable_laser()

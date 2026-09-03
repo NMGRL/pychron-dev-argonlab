@@ -51,6 +51,8 @@ from pychron.spectrometer.jobs.dac_scanner import DACScanner
 from pychron.spectrometer.jobs.mass_scanner import MassScanner
 from pychron.spectrometer.jobs.rise_rate import RiseRate
 from pychron.spectrometer.readout_view import ReadoutView
+from pychron.core.ui.gui import invoke_in_main_thread
+from pychron.graph.stream_graph import time_generator
 
 
 class ScanManager(StreamGraphManager):
@@ -98,6 +100,7 @@ class ScanManager(StreamGraphManager):
     log_events_enabled = False
     _valve_event_list = List
     _detector_series_cache = None
+    _record_time_generator = None
     _last_graph_limit_update = 0
     # _prev_signals = None
     # _no_intensity_change_cnt = 0
@@ -343,6 +346,7 @@ class ScanManager(StreamGraphManager):
     #     self._prev_signals = signals
 
     def _update(self, data):
+        
         keys, signals, _, _ = data
         if keys:
             self._signal_failed_cnt = 0
@@ -350,16 +354,9 @@ class ScanManager(StreamGraphManager):
             if not mapping:
                 return
 
-            series, signals = list(zip(*mapping))
-            x = self.graph.record_multiple(
-                signals, series=series, track_y=False
-            )
-
-            if self.graph_y_auto and self._should_update_graph_limits():
-                self.graph.update_y_limits(plotid=0, pad="0.1")
-                self._last_graph_limit_update = time.time()
-
+            invoke_in_main_thread(self._update_graph, mapping)
             if self._recording and self.queue:
+                x = next(self._record_time_generator)
                 self.queue.put((x, keys, signals))
         else:
             self._signal_failed_cnt += 1
@@ -399,13 +396,13 @@ class ScanManager(StreamGraphManager):
                 self._stop_timer()
 
     def _start_recording(self):
-        #        self._first_recording = True
+      
         self.queue = Queue()
+        self._record_time_generator = time_generator(0)
         self.record_data_manager = dm = CSVDataManager()
         self.consumer = Thread(target=self._consume, args=(dm,))
         self.consumer.start()
-        # #        root = paths.spectrometer_scans_dir
-        # #        p, _c = unique_path(root, 'scan')
+    
         dm.new_frame(directory=paths.spectrometer_scans_dir)
 
     def _stop_recording(self):
@@ -531,39 +528,17 @@ class ScanManager(StreamGraphManager):
             return
 
         if new and not self._check_detector_protection(old, True):
-            # self.scanner.detector = self.detector
-            nominal_width = 1
-            emphasize_width = 2
-            for name, plot in self.graph.plots[0].plots.items():
-                plot = plot[0]
-                plot.line_width = (
-                    emphasize_width if name == self.detector.name else nominal_width
-                )
-            self.graph.redraw(force=False)
+            invoke_in_main_thread(self._update_line_widths)
 
-            # mass = self.magnet.mass
-            # if abs(mass) > 1e-5:
-            #     molweights = self.spectrometer.molecular_weights
-            #     if self.isotope in molweights:
-            #         mw = molweights[self.isotope]
-            #         if abs(mw - mass) > 0.1:
-            #             self.isotope = NULL_STR
-            #         else:
-            #             mass = self.isotope
-            #
-            #     self.info('set position {} on {}'.format(mass, self.detector))
-            #
-            #     def func():
-            #         self._suppress_isotope_change = True
-            #         self.ion_optics_manager.position(mass, self.detector)
-            #         self._suppress_isotope_change = False
-            #
-            #     # thread not super necessary
-            #     # simple allows gui to update while the magnet is delaying for settling_time
-            #     # t = Thread(target=self.ion_optics_manager.position,
-            #     #            args=(mass, self.detector))
-            #     t = Thread(target=func)
-            #     t.start()
+    def _update_line_widths(self):
+        nominal_width = 1
+        emphasize_width = 2
+        for name, plot in self.graph.plots[0].plots.items():
+            plot = plot[0]
+            plot.line_width = (
+                emphasize_width if name == self.detector.name else nominal_width
+            )
+        self.graph.redraw(force=False)
 
     def _integration_time_changed(self):
         if self.integration_time:
@@ -595,6 +570,12 @@ class ScanManager(StreamGraphManager):
 
                 dm.write_to_frame((x,) + tuple(signals))
 
+    def _update_graph(self, mapping):
+        series, signals = zip(*mapping)
+        self.graph.record_multiple(signals, series=series, track_y=False)
+        if self.graph_y_auto and self._should_update_graph_limits():
+            self.graph.update_y_limits(plotid=0, pad="0.1")
+            self._last_graph_limit_update = time.time()
     # ===============================================================================
     # factories
     # ===============================================================================

@@ -26,6 +26,7 @@ from traitsui.api import View, Item, HGroup, spring
 
 # ============= local library imports  ==========================
 from pychron.paths import paths
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.spectrometer.base_detector import BaseDetector
 from pychron.spectrometer.spectrometer_device import SpectrometerDevice
 
@@ -111,7 +112,7 @@ class ThermoDetector(BaseDetector, SpectrometerDevice):
             if self._deflection != v:
                 self.spectrometer.update_config(Deflections=[(self.name, v)])
 
-            self._deflection = v
+            invoke_in_main_thread(self.trait_set, _deflection = v)
             self.ask("SetDeflection {},{}".format(self.deflection_name, v))
 
     def _get_deflection(self):

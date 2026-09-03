@@ -483,10 +483,11 @@ class KerrMotor(KerrDevice, BaseLinearDrive):
             self.load_data_position(set_pos=False)
 
     def _set_motor(self, pos, main=True):
-        if self._data_position != pos or not self._data_position:
+        if self._data_position_raw != pos or not self._data_position_raw:
             self.info("setting motor in data space {:0.3f}".format(float(pos)))
 
-            self._data_position = pos
+            self._data_position_raw = pos
+            invoke_in_main_thread(self.trait_set, _data_position=pos)
             lm = self.linear_mapper
             steps = lm.map_steps(pos)
 

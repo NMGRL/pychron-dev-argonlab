@@ -385,7 +385,7 @@ class AutomatedRun(Loggable):
 
     def py_set_isotope_group(self, name):
         if self.plot_panel:
-            self.plot_panel.add_isotope_graph(name)
+            invoke_in_main_thread(self.plot_panel.add_isotope_graph, name)
 
     def py_generate_ic_mftable(self, detectors, refiso, peak_center_config=None, n=1):
         pairs = [(di, refiso) for di in detectors]
@@ -577,10 +577,6 @@ class AutomatedRun(Loggable):
         close_inlet=True,
         delay=None,
     ):
-        # evt = TEvent()
-        # if not self._alive:
-        #     evt.set()
-        #     return evt
 
         self.heading("Equilibration Started")
 
@@ -715,7 +711,7 @@ class AutomatedRun(Loggable):
         self.multi_collector.fit_series_idx = fit_series
 
         self.collector.for_peak_hop = self.plot_panel.is_peak_hop
-        self.plot_panel.is_peak_hop = False
+        invoke_in_main_thread(self.plot_panel.trait_set, is_peak_hop = False)
 
         if integration_time:
             self.set_integration_time(integration_time)
@@ -744,83 +740,19 @@ class AutomatedRun(Loggable):
         add additional isotopes and associated plots if necessary
         """
         if self.plot_panel is None:
-            self.plot_panel = self._new_plot_panel(
-                self.plot_panel, stack_order="top_to_bottom"
-            )
-
-        self.plot_panel.is_peak_hop = True
-
-        a = self.isotope_group
-        g = self.plot_panel.isotope_graph
-        g.clear()
-        self.measurement_script.reset_series()
+            evt = TEvent()
+            result = {}
+            invoke_in_main_thread(self._create_hop_plot_panel, evt, result)
+            if not evt.wait(timeout=5) or "plot_panel" not in result:
+                raise RuntimeError("failed to create plot panel for hop definition")
+            self.plot_panel = result["plot_panel"]
 
         hops = parse_hops(hopstr, ret="iso,det,is_baseline")
-
-        for iso, det, is_baseline in hops:
-            if is_baseline:
-                continue
-
-            name = iso
-            if name in a.isotopes:
-                ii = a.isotopes[name]
-                if ii.detector != det:
-                    name = "{}{}".format(iso, det)
-                    ii = a.isotope_factory(name=iso, detector=det)
-            else:
-                ii = a.isotope_factory(name=name, detector=det)
-
-            pid = self._get_plot_id_by_ytitle(g, name)
-            if pid is None:
-                plot = self.plot_panel.new_isotope_plot()
-                pid = g.plots.index(plot)
-            else:
-                plot = g.plots[pid]
-
-            plot.y_axis.title = name
-
-            g.set_regressor(ii.regressor, pid)
-            a.isotopes[name] = ii
+        invoke_in_main_thread(self._setup_hop_graph, hops)
 
         self._load_previous()
-        self.plot_panel.analysis_view.load(self)
 
-        # map_mass = self.spectrometer_manager.spectrometer.map_mass
-        # hops = [(map_mass(hi[0]),) + tuple(hi) for hi in hops]
-        #
-        # for mass, dets in groupby_key(hops, key=itemgetter(0), reverse=True):
-        #     dets = list(dets)
-        #     iso = dets[0][1]
-        #     if dets[0][3]:
-        #         continue
-        #
-        #     for _, _, di, _ in dets:
-        #         self._add_active_detector(di)
-        #         name = iso
-        #         if iso in a.isotopes:
-        #             ii = a.isotopes[iso]
-        #             if ii.detector != di:
-        #                 name = '{}{}'.format(iso, di)
-        #                 ii = a.isotope_factory(name=name, detector=di)
-        #         else:
-        #             ii = a.isotope_factory(name=iso, detector=di)
-        #
-        #         pid = self._get_plot_id_by_ytitle(g, ii, di)
-        #         if pid is None:
-        #             plots = self.plot_panel.new_isotope_plot()
-        #             plot = plots['isotope']
-        #             pid = g.plots.index(plot)
-        #
-        #             # this line causes and issue when trying to plot the sniff on the isotope graph
-        #             # g.new_series(type='scatter', fit='linear', plotid=pid)
-        #
-        #         g.set_regressor(ii.regressor, pid)
-        #         a.isotopes[name] = ii
-        #         plot.y_axis.title = name
-        #
-        # self._load_previous()
-        #
-        # self.plot_panel.analysis_view.load(self)
+
 
     def py_peak_hop(
         self,
@@ -843,7 +775,8 @@ class AutomatedRun(Loggable):
             self.peak_hop_collector.fit_series_idx = fit_series
 
             if self.plot_panel:
-                self.plot_panel.trait_set(
+                invoke_in_main_thread(
+                    self.plot_panel.trait_set,
                     is_baseline=is_baseline, _ncycles=cycles, hops=hops
                 )
                 self.plot_panel.show_isotope_graph()
@@ -921,9 +854,13 @@ class AutomatedRun(Loggable):
                     )
 
             if not self.plot_panel:
-                p = self._new_plot_panel(stack_order="top_to_bottom")
-                self.plot_panel = p
-
+                evt = TEvent()
+                result = {}
+                invoke_in_main_thread(self._create_peak_center_plot_panel, evt, result)
+                if not evt.wait(timeout=5) or "plot_panel" not in result:
+                    raise RuntimeError("failed to create plot panel for peak center")
+                self.plot_panel = result["plot_panel"]
+                
             self.debug("peak center started")
 
             ad = [di.name for di in self._peak_center_detectors if di.name != detector]
@@ -1066,7 +1003,7 @@ class AutomatedRun(Loggable):
 
         if self.spec.state != "not run":
             self.spec.transition("abort", force=True, source="abort_run")
-            self.experiment_queue.refresh_table_needed = True
+            invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
     def cancel_run(self, state="canceled", do_post_equilibration=True):
         """
@@ -1105,7 +1042,7 @@ class AutomatedRun(Loggable):
         if state:
             if self.spec.state != "not run":
                 self.spec.set_state(state, force=True, source="cancel_run")
-                self.experiment_queue.refresh_table_needed = True
+                invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
     def truncate_run(self, style="normal"):
         """
@@ -1127,7 +1064,7 @@ class AutomatedRun(Loggable):
             self.collector.set_truncated()
             self.truncated = True
             self.spec.transition("truncate", source="truncate_run")
-            self.experiment_queue.refresh_table_needed = True
+            invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
     # ===============================================================================
     #
@@ -1173,7 +1110,7 @@ class AutomatedRun(Loggable):
                 "aborted",
             ):
                 self.spec.transition("fail", force=True, source="finish")
-                self.experiment_queue.refresh_table_needed = True
+                invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
         self.spectrometer_manager.spectrometer.active_detectors = []
         self.stop()
@@ -1413,21 +1350,6 @@ class AutomatedRun(Loggable):
             else:
                 self._persister_save_action("post_measurement_save")
 
-            # if self.plot_panel:
-            #     self.plot_panel.analysis_view.refresh_needed = True
-
-        #     if self.persister.secondary_database_fail:
-        #         self.executor_event = {
-        #             "kind": "cancel",
-        #             "cancel_run": True,
-        #             "msg": self.persister.secondary_database_fail,
-        #         }
-        #
-        #     else:
-        #         return True
-        # else:
-        #     return True
-
     def _apply_baseline_modification(self):
         if not os.path.isfile(paths.baseline_model):
             self.warning("No baseline model file available to do baseline modification")
@@ -1450,7 +1372,7 @@ class AutomatedRun(Loggable):
                 mb = eval(config["function"], {"x": xvalue})
 
             fe = config.get("function_err", "")
-            if "countingstatistics" in fe:
+            if "countingstatistics" in fe and len(ar40iso.baseline.xs):
                 countingtime = ar40iso.baseline.xs[-1] - ar40iso.baseline.xs[0]
                 cpsTofA = 6250.0 * countingtime
                 n = nominal_value(mb) * cpsTofA
@@ -1463,6 +1385,10 @@ class AutomatedRun(Loggable):
                 sigma = eval(fe, {"countingstatistics": sigma})
                 mb = ufloat(
                     nominal_value(mb), (sigma) / cpsTofA, tag="baseline_modifier"
+                )
+            elif "countingstatistics" in fe:
+                self.debug(
+                    f"no baseline data for det={detector}, skipping counting statistics error"
                 )
 
             self.debug(
@@ -1499,16 +1425,7 @@ class AutomatedRun(Loggable):
                     m = modifier_function(model, iso.detector)
                     iso.baseline.ys += m.nominal_value
 
-                    # this needs to incorporate filtering
-                    # use logic from MassSpecPersistenceSpec.get_filtered_baseline_uvalue
-                    # refactor into Isotope
-
-                    # nm = iso.baseline.ys.mean()
-                    # ns = iso.baseline.ys.std()
                     md[iso.detector] = {
-                        # "modified_baseline": ufloat(
-                        #     nm + nominal_value(m), (ns**2 + std_dev(m) ** 2) ** 0.5
-                        # ),
                         "modifier": m,
                     }
             self.debug(f"modified baselines {md}")
@@ -1520,7 +1437,6 @@ class AutomatedRun(Loggable):
     def setup_persister(self):
         sens = self._get_extraction_parameter("sensitivity_multiplier", default=1)
 
-        # setup persister. mirror a few of AutomatedRunsAttributes
         script_name, script_blob = self._assemble_script_blob()
         eqn, eqb = "", ""
 
@@ -1614,7 +1530,7 @@ class AutomatedRun(Loggable):
         msg = "Extraction Started {}".format(script.name)
         self.heading("{}".format(msg))
         self.spec.transition("start_extraction", source="do_extraction")
-        self.experiment_queue.refresh_table_needed = True
+        invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
         self.debug("DO EXTRACTION {}".format(self.runner))
         script.set_run_identifier(self.runid)
@@ -1635,10 +1551,7 @@ class AutomatedRun(Loggable):
                 p = os.path.join(paths.scripts_dir, "syn_extraction", pp)
                 self.debug(f"using syn_extracion file: {p}")
                 if os.path.isfile(p):
-                    # dur = script.calculate_estimated_duration(force=True)
-                    # syn_extractor = SynExtractionCollector(
-                    #     arun=weakref.ref(self)(), path=p, extraction_duration=dur
-                    # )
+    
                     self.syn_extractor.arun = self
                     self.syn_extractor.path = p
                     self.syn_extractor.start()
@@ -1742,7 +1655,7 @@ class AutomatedRun(Loggable):
         msg = "Measurement Started {}".format(script.name)
         self.heading("{}".format(msg))
         self.spec.transition("start_measurement", source="do_measurement")
-        self.experiment_queue.refresh_table_needed = True
+        invoke_in_main_thread(setattr, self.experiment_queue, "refresh_table_needed", True)
 
         # get current spectrometer values
         sm = self.spectrometer_manager
@@ -2688,14 +2601,7 @@ anaylsis_type={}
 
         if self._alive:
             # analyze the equilibration
-            try:
-                self._analyze_equilibration()
-            except BaseException as e:
-                self.debug(
-                    "AutomatedRun._equilibrate _analyze_equilibration error. Exception={}".format(
-                        e
-                    )
-                )
+            invoke_in_main_thread(self._analyze_equilibration)
 
             self.heading("Equilibration Finished")
             if elm and inlet and close_inlet:
@@ -2710,50 +2616,55 @@ anaylsis_type={}
                 self.overlap_evt.set()
 
     def _analyze_equilibration(self):
-        if self.use_equilibration_analysis and self.plot_panel:
-            g = self.plot_panel.sniff_graph
-            xmi, xma = g.get_x_limits()
-            xma *= 1.25
-            g.set_x_limits(xmi, xma)
+        try:
+            if self.use_equilibration_analysis and self.plot_panel:
+                g = self.plot_panel.sniff_graph
+                xmi, xma = g.get_x_limits()
+                xma *= 1.25
+                g.set_x_limits(xmi, xma)
 
-            fxs = linspace(xmi, xma)
-            for i, p in enumerate(g.plots):
-                try:
-                    xs = g.get_data(i)
-                except IndexError:
-                    continue
+                fxs = linspace(xmi, xma)
+                for i, p in enumerate(g.plots):
+                    try:
+                        xs = g.get_data(i)
+                    except IndexError:
+                        continue
 
-                ys = g.get_data(i, axis=1)
-                if ys is None:
-                    continue
+                    ys = g.get_data(i, axis=1)
+                    if ys is None:
+                        continue
 
-                for ni, color, yoff in (
-                    (5, "red", 30),
-                    (4, "green", 10),
-                    (3, "blue", -10),
-                    (2, "orange", -30),
-                ):
-                    xsi, ysi = xs[-ni:], ys[-ni:]
+                    for ni, color, yoff in (
+                        (5, "red", 30),
+                        (4, "green", 10),
+                        (3, "blue", -10),
+                        (2, "orange", -30),
+                    ):
+                        xsi, ysi = xs[-ni:], ys[-ni:]
 
-                    g.new_series(
-                        xsi, ysi, type="scatter", plotid=i, color=color, marker_size=2.5
-                    )
+                        g.new_series(
+                            xsi, ysi, type="scatter", plotid=i, color=color, marker_size=2.5
+                        )
 
-                    coeffs = polyfit(xsi, ysi, 1)
-                    fys = polyval(coeffs, fxs)
-                    g.new_series(fxs, fys, type="line", plotid=i, color=color)
-                    txt = "Slope ({})={:0.3f}".format(ni, coeffs[0])
-                    g.add_plot_label(
-                        txt,
-                        plotid=i,
-                        overlay_position="inside right",
-                        font="modern 14",
-                        bgcolor="white",
-                        color=color,
-                        y_offset=yoff,
-                    )
+                        coeffs = polyfit(xsi, ysi, 1)
+                        fys = polyval(coeffs, fxs)
+                        g.new_series(fxs, fys, type="line", plotid=i, color=color)
+                        txt = "Slope ({})={:0.3f}".format(ni, coeffs[0])
+                        g.add_plot_label(
+                            txt,
+                            plotid=i,
+                            overlay_position="inside right",
+                            font="modern 14",
+                            bgcolor="white",
+                            color=color,
+                            y_offset=yoff,
+                        )
 
-            g.redraw()
+                g.redraw()
+        except BaseException as e:
+            self.debug(
+                "AutomatedRun._analyze_equilibration error. Exception={}".format(e)
+            )
 
     def _update_labels(self):
         self.debug("update labels {}".format(self.plot_panel))
@@ -2890,9 +2801,7 @@ anaylsis_type={}
 
             if self.plot_panel:
                 self.debug("load analysis view")
-                self.plot_panel.analysis_view.load(self)
-
-            #     self.plot_panel.analysis_view.refresh_needed = True
+                invoke_in_main_thread(self.plot_panel.analysis_view.load, self)
 
         return change
 
@@ -3116,19 +3025,14 @@ anaylsis_type={}
         if hasattr(self.spectrometer_manager.spectrometer, "trigger_acq"):
             m.trait_set(trigger=self.spectrometer_manager.spectrometer.trigger_acq)
 
+        if hasattr(self.spectrometer_manager.spectrometer, "set_replay_context"):
+            self.spectrometer_manager.spectrometer.set_replay_context(grpname, starttime)
+
         if self.plot_panel:
-            self.plot_panel.integration_time = self._integration_seconds
-            self.plot_panel.set_ncounts(ncounts)
+            invoke_in_main_thread(
+                self._setup_measurement_graphs, grpname, starttime_offset, color, ncounts
+            )
 
-            if grpname == "sniff":
-                self._setup_isotope_graph(starttime_offset, color, grpname)
-                self._setup_sniff_graph(starttime_offset, color)
-            elif grpname == "baseline":
-                self._setup_baseline_graph(starttime_offset, color)
-            else:
-                self._setup_isotope_graph(starttime_offset, color, grpname)
-
-        # time.sleep(0.5)
         with self.persister.writer_ctx():
             m.measure()
 
@@ -3147,6 +3051,18 @@ anaylsis_type={}
             }
 
         return not m.canceled and self.spec.state != FAILED
+
+    def _setup_measurement_graphs(self, grpname, starttime_offset, color, ncounts):
+        self.plot_panel.integration_time = self._integration_seconds
+        self.plot_panel.set_ncounts(ncounts)
+        
+        if grpname == "sniff":
+            self._setup_isotope_graph(starttime_offset, color, grpname)
+            self._setup_sniff_graph(starttime_offset, color)
+        elif grpname == "baseline":
+            self._setup_baseline_graph(starttime_offset, color)
+        else:
+            self._setup_isotope_graph(starttime_offset, color, grpname)
 
     def _get_plot_id_by_ytitle(self, graph, pair, iso=None):
         """
@@ -3396,22 +3312,6 @@ anaylsis_type={}
             self.script_info.post_equilibration_script_name,
         )
 
-    # def _ext_factory(self, root, file_name, klass=None):
-    #     file_name = self._make_script_name(file_name)
-    #     if os.path.isfile(os.path.join(root, file_name)):
-    #         if klass is None:
-    #             from pychron.pyscripts.extraction_line_pyscript import (
-    #                 ExtractionPyScript,
-    #             )
-    #
-    #             klass = ExtractionPyScript
-    #
-    #         obj = klass(root=root,
-    #                     automated_run=self,
-    #                     name=file_name, runner=self.runner)
-    #
-    #         return obj
-
     def _script_factory(self, root, file_name, klass=None):
         if klass is None:
             from pychron.pyscripts.extraction_line_pyscript import (
@@ -3500,6 +3400,54 @@ anaylsis_type={}
                 okinds.append(s)
 
         return assemble_script_blob(bs, kinds=okinds)
+
+    def _create_hop_plot_panel(self, evt, result):
+        try:
+            result["plot_panel"] = self._new_plot_panel(stack_order="top_to_bottom")
+        finally:
+            evt.set()
+
+    def _setup_hop_graph(self, hops):
+        self.plot_panel.is_peak_hop = True
+
+        a = self.isotope_group
+        g = self.plot_panel.isotope_graph
+        g.clear()
+        self.measurement_script.reset_series()
+
+        for iso, det, is_baseline in hops:
+            if is_baseline:
+                continue
+
+            name = iso 
+            if name in a.isotopes:
+                ii = a.isotopes[name]
+                if ii.detector != det:
+                    name = "{}{}".format(iso, det)
+                    ii = a.isotope_factory(name=iso, detector=det)
+            else:
+                ii = a.isotope_factory(name=name, detector=det)
+
+            pid = self._get_plot_id_by_ytitle(g, name)
+            if pid is None:
+                plot = self.plot_panel.new_isotope_plot()
+                pid = g.plots.index(plot)
+            else:
+                plot = g.plots[pid]
+
+            if plot.y_axis.title != name:
+                plot.y_axis.title = name
+
+            g.set_regressor(ii.regressor, pid)
+            a.isotopes[name] = ii
+
+        self.plot_panel.analysis_view.load(self)
+
+    def _create_peak_center_plot_panel(self, evt, result):
+        try:
+            result["plot_panel"] = self._new_plot_panel(stack_order="top_to_bottom")
+        finally:
+            evt.set()
 
     # ===============================================================================
     # handlers

@@ -100,10 +100,12 @@ class ResultsView(Controller):
             ct = time.time() - st
             if ct > delay or self.cancel_auto_close:
                 break
-            self.help_str = self.base_help_str.format(delay - int(ct))
+            invoke_in_main_thread(
+                self.trait_set, help_str = self.base_help_str.format(delay - int(ct))
+                )
 
         if self.cancel_auto_close:
-            self.help_str = "Auto close canceled"
+            invoke_in_main_thread(self.trait_set, help_str = "Auto close canceled")
         else:
             invoke_in_main_thread(self._do_auto_close)
 

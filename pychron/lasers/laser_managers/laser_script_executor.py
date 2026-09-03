@@ -22,6 +22,7 @@ from traits.api import Instance, Bool, Button, Property, Str
 from traitsui.api import View, Item, ButtonEditor, UItem
 
 from pychron.core.helpers.filetools import pathtolist
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.lasers.laser_managers.ilaser_manager import ILaserManager
 from pychron.loggable import Loggable
 from pychron.paths import paths
@@ -106,11 +107,11 @@ class UVLaserScriptExecutor(LaserScriptExecutor):
             return
 
         try:
-            self.message = line
+            invoke_in_main_thread(self.trait_set, message = line)
             func(*args)
         except BaseException as e:
             self.warning("Failed to execute err:{}, line={}".format(e, line))
-            self.message = ""
+            invoke_in_main_thread(self.trait_set, message = "")
 
     # commands
     def _cmd_line_y(self, x, y, step, n, nburst):

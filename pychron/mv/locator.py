@@ -204,19 +204,18 @@ class Locator(Loggable):
     def find(self, image, frame, dim, shape="circle", confirm=False, **kw):
         self.alive = True
         dx, dy = None, None
+        src = None 
 
         st = time.time()
         targets = self._find_targets_bs(image, frame, dim, shape=shape, **kw)
         self.debug("time to find targets={:0.5f}".format(time.time() - st))
         if targets:
             self.info("found {} potential targets".format(len(targets)))
-            src = image.source_frame
+            src = image.source_frame if image is not None else frame 
 
-            # draw targets
             self._draw_targets(src, targets)
 
             dx, dy = self._calculate_error(targets)
-            # if not image.tiles:
             y, x = frame.shape[:2]
             self._draw_indicator(
                 src, (x / 2 + dx, y / 2 - dy), shape="circle", size=dim
@@ -225,18 +224,21 @@ class Locator(Loggable):
             self._draw_center_indicator(
                 src, size=max(10, int(src.shape[0] * 0.25)), shape="crosshairs"
             )
-            image.tile(src)
+            if image is not None:
+                image.tile(src)
 
-        if self.use_tile:
+        if self.use_tile and image is not None:
             image.tilify()
 
-        image.refresh_needed = True
+        if image is not None:
+            image.refresh_needed = True
+
         self.info("dx={}, dy={}".format(dx, dy))
         if confirm:
             if not self.confirmation_dialog("Move to position"):
                 dx, dy = None, None
         self.debug("total find time={:0.5f}".format(time.time() - st))
-        return dx, dy
+        return dx, dy, src
 
     def _find_targets_bs(
         self,

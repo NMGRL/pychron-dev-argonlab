@@ -22,6 +22,7 @@ from pychron.core.file_listener import FileListener
 from pychron.core.pychron_traits import BorderVGroup
 from pychron.core.ui.code_editor import PyScriptCodeEditor
 from pychron.core.ui.custom_label_editor import CustomLabel
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.envisage.icon_button_editor import icon_button_editor
 from pychron.envisage.tasks.base_editor import BaseTraitsEditor
 from pychron.pyscripts.pipeline_pyscript import PipelinePyScript
@@ -71,7 +72,7 @@ class PipelinePyScriptEditor(BaseTraitsEditor):
         sys.stdout = oout
 
     def _refresh_from_disk(self):
-        self.script.bootstrap()
+        invoke_in_main_thread(self.script.bootstrap)
 
     def _execute_button_fired(self):
         self._execute()

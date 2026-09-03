@@ -92,14 +92,14 @@ class LaserManager(BaseLaserManager):
         enabled = self._enable_hook(**kw)
 
         if self.simulation:
-            self.enabled = True
+            invoke_in_main_thread(self.trait_set, enabled = True)
             return True
 
         if isinstance(enabled, bool) and enabled:
             if self.clear_flag("enable_error_flag"):
                 self.debug("clearing enable error flag")
 
-            self.enabled = True
+            invoke_in_main_thread(self.trait_set, enabled = True)
             self.monitor = self.monitor_factory()
             self.monitor.reset()
             if not self.monitor.monitor():
@@ -131,19 +131,12 @@ class LaserManager(BaseLaserManager):
 
         enabled = self._disable_hook()
 
-        self.enabled = False
+        invoke_in_main_thread(self.trait_set, enabled = False)
 
         #        self.enabled_led.state = 'red'
         self._requested_power = 0
 
         return enabled
-
-    # def set_laser_output(self, *args, **kw):
-    #     """
-    #         by default set_laser_output simply uses set_laser_power
-    #         but subclasses can override for different units
-    #     """
-    #     self.set_laser_power(*args, **kw)
 
     def set_laser_power(self, power, verbose=True, units=None, *args, **kw):
         """ """

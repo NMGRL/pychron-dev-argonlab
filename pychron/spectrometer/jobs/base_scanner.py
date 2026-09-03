@@ -27,6 +27,7 @@ import os
 from pychron.graph.graph import Graph
 from pychron.paths import paths
 from pychron.persistence_loggable import PersistenceLoggable
+from pychron.core.ui.gui import invoke_in_main_thread
 
 
 class BaseScanner(PersistenceLoggable):
@@ -98,11 +99,15 @@ class BaseScanner(PersistenceLoggable):
         st = time.time()
 
         limits = self._get_limits()
-        graph.set_x_limits(*limits, pad="0.1")
+        invoke_in_main_thread(graph.set_x_limits, *limits, pad="0.1")
 
         self.debug("reference detector {}".format(spec.reference_detector))
         refdet = spec.get_detector(spec.reference_detector)
 
+        rys = array([])
+        xs = array([])
+
+        plotid = self.plotid
         for i, si in enumerate(self._calculate_steps(*limits)):
             if self._cancel_event.is_set():
                 self.debug("exiting scan. dac={}".format(si))
@@ -117,7 +122,7 @@ class BaseScanner(PersistenceLoggable):
 
             refsig = float(refdet.intensity)
             refk = "{}y{}".format(refdet, self.plotid)
-            rys = plot.data.get_data(refk)
+
             if i == 0:
                 rys = array([refsig])
                 xs = array([si])
@@ -127,39 +132,40 @@ class BaseScanner(PersistenceLoggable):
 
             # self.debug('dsfa {}, {}'.format(refsig, rys))
 
-            plot.data.update_data({"x{}".format(self.plotid): xs})
-            plot.data.set_data(refk, rys)
-
             ref_mi, ref_ma = mi, ma = rys.min(), rys.max()
             ref_r = rys.max() - ref_mi
+
+            det_updates = []
+            odata = {}
             for det, sig in zip(ks, ss):
                 if det == refdet.name:
                     continue
 
-                oys = None
-                k = "odata{}_{}".format(i, self.plotid)
-                if hasattr(plot, k):
-                    oys = getattr(plot, k)
+                oys = odata.get(det)
+                
 
                 oys = array([sig]) if oys is None else hstack((oys, sig))
-                setattr(plot, k, oys)
+                odata[det] = oys
 
                 mir = oys.min()
                 r = oys.max() - mir
                 oys = (oys - mir) * ref_r / r + ref_mi
 
-                plot.data.update_data({"{}y{}".format(det, self.plotid): oys})
+                det_updates.append((det, oys))
                 det = self.spectrometer.get_detector(det)
                 if det.active:
                     mi, ma = min(mi, min(oys)), max(ma, max(oys))
 
-            self.graph.set_y_limits(min_=mi, max_=ma, pad="0.05", pad_style="upper")
+            invoke_in_main_thread(self._update_plot, plot, xs, refk, rys, det_updates, mi, ma, plotid)
 
         self.plotid += 1
         self.debug("duration={:0.3f}".format(time.time() - st))
-        self.new_scanner_enabled = True
-        self.start_scanner_enabled = True
-        self.stop_scanner_enabled = False
+        invoke_in_main_thread( 
+            self.trait_set,
+            new_scanner_enabled = True,
+            start_scanner_enabled = True,
+            stop_scanner_enabled = False,
+        )
 
     def _do_step(self, magnet, step):
         raise NotImplementedError
@@ -212,6 +218,13 @@ class BaseScanner(PersistenceLoggable):
         self.graph.clear_plots()
         self.plotid = 0
         self.graph.redraw()
+
+    def _update_plot(self, plot, xs, refk, rys, det_updates, mi, ma, plotid):
+        plot.data.update_data({"x{}".format(plotid): xs})
+        plot.data.set_data(refk, rys)
+        for det_name, oys in det_updates:
+            plot.data.update_data({"{}y{}".format(det_name, plotid): oys})
+        self.graph.set_y_limits(min_=mi, max_=ma, pad="0.05", pad_style="upper")
 
 
 # ============= EOF =============================================

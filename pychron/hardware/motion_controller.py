@@ -28,6 +28,7 @@ from pychron.core.helpers.strtools import csv_to_floats
 from pychron.core.helpers.timer import Timer
 from pychron.hardware.core.core_device import CoreDevice
 from pychron.hardware.core.motion.motion_profiler import MotionProfiler
+from pychron.core.ui.gui import invoke_in_main_thread
 
 
 # from pychron.hardware.utilities import limit_frequency
@@ -85,6 +86,7 @@ class MotionController(CoreDevice):
 
     _z_position = Float
     z_progress = Float
+    _z_progress_raw = None
     motion_profiler = Instance(MotionProfiler)
 
     groupobj = None
@@ -104,12 +106,11 @@ class MotionController(CoreDevice):
             pos = self.get_current_position(a)
             if pos is not None:
                 setattr(self, "_{}_position".format(a), pos)
-                #            time.sleep(0.075)
-        self.z_progress = self._z_position
+        self._z_progress_raw = self._z_position
+        invoke_in_main_thread(self.trait_set, z_progress = self._z_position)
 
-        #        def _update():
-        #        print self._x_position, self._y_position
-        self.parent.canvas.set_stage_position(self._x_position, self._y_position)
+        
+        invoke_in_main_thread(self.parent.canvas.set_stage_position,self._x_position, self._y_position)
 
     # @caller
     def timer_factory(self, func=None, period=150):
@@ -279,7 +280,8 @@ class MotionController(CoreDevice):
         self._check_moving(axis="z", verbose=True)
 
         z = self.get_current_position("z")
-        self.z_progress = z
+        self._z_progress_raw = z 
+        invoke_in_main_thread(self.trait_set, z_progress = z)
 
     def _check_moving(self, axis=None, verbose=True):
         m = self._moving(axis=axis, verbose=verbose)
@@ -307,13 +309,13 @@ class MotionController(CoreDevice):
         """ """
         stopped = self._check_moving()
         if stopped:
-            self.parent.canvas.clear_desired_position()
+            invoke_in_main_thread(self.parent.canvas.clear_desired_position)
             self.update_axes()
         else:
             xy = self.get_current_xy()
             if xy:
                 self._validate_xy(*xy)
-                self.parent.canvas.set_stage_position(*xy)
+                invoke_in_main_thread(self.parent.canvas.set_stage_position,*xy)
 
     def _validate_xy(self, x, y):
         if self._homing:

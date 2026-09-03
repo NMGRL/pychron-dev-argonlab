@@ -33,6 +33,7 @@ class BaseMagnet(SpectrometerDevice, FieldMixin):
     mass = Float(enter_set=True, auto_set=False)
 
     _dac = Float
+    _dac_raw = Float
     dacmin = Float(0.0)
     dacmax = Float(10.0)
 
@@ -84,8 +85,8 @@ class BaseMagnet(SpectrometerDevice, FieldMixin):
 
         d = self.read_dac()
         if d is not None:
-            self._dac = d
-
+            self._dac_raw = d
+            self._dac = d 
         # load af demag
         self._load_af_demag_configuration()
 
@@ -125,9 +126,9 @@ class BaseMagnet(SpectrometerDevice, FieldMixin):
         self.debug("{} map mass to dac {} >> {}".format(detname, mass, dac))
         if dac is None:
             self.warning(
-                "Could not map mass to dac. Returning current DAC {}".format(self._dac)
+                "Could not map mass to dac. Returning current DAC {}".format(self._dac_raw)
             )
-            dac = self._dac
+            dac = self._dac_raw
 
         return dac
 
@@ -142,7 +143,7 @@ class BaseMagnet(SpectrometerDevice, FieldMixin):
         :return: str, e.g Ar40
         """
         if dac is None:
-            dac = self._dac
+            dac = self._dac_raw
         if det is None:
             det = self.detector
 

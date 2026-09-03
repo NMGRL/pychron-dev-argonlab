@@ -50,6 +50,7 @@ from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.core.ui.thread import Thread
 
 
+
 class ConfigureHandler(Handler):
     def closed(self, info, isok):
         if isok:
@@ -207,8 +208,8 @@ ImageGradmax={}, (z={})""".format(
             )
 
             focus_pos = fma
-            self.graph.add_vertical_rule(focus_pos)
-            self.graph.redraw()
+            invoke_in_main_thread(self.graph.add_vertical_rule,focus_pos)
+            invoke_in_main_thread(self.graph.redraw)
             #            self.graph.add_vertical_rule(fma)
 
             self.info("calculated focus z= {}".format(focus_pos))
@@ -219,14 +220,15 @@ ImageGradmax={}, (z={})""".format(
                 if not stop_signal.isSet():
                     controller.single_axis_move("z", focus_pos, block=True)
                     controller._z_position = focus_pos
-                    controller.z_progress = focus_pos
+                    controller._z_progress_raw = focus_pos
+                    invoke_in_main_thread(controller.trait_set, z_progress=focus_pos)
 
-        self.autofocusing = False
+        invoke_in_main_thread(self.trait_set, autofocusing = False)
 
     def _cancel_sweep(self, vo):
         if self._evt_autofocusing.isSet():
             # return to original velocity
-            self.autofocusing = False
+            invoke_in_main_thread(self.trait_set, autofocusing = False)
             self._reset_velocity(vo)
             return True
 
@@ -263,7 +265,7 @@ ImageGradmax={}, (z={})""".format(
             vo = controller.axes["z"].velocity
             if self._cancel_sweep(vo):
                 return
-            self.graph.set_x_limits(min(start, end), max(start, end), pad=2)
+            invoke_in_main_thread(self.graph.set_x_limits,min(start, end), max(start, end), pad=2)
             # sweep 1 and velocity 1
             self._do_sweep(start, end, velocity=self.parameters.velocity_scalar1)
             fms, focussteps = self._collect_focus_measures(operator, roi)
@@ -316,7 +318,7 @@ ImageGradmax={}, (z={})""".format(
                 pdict=dict(velocity=vo * velocity, key="z")
             )
 
-        self.info("starting sweep from {}".format(controller.z_progress))
+        self.info("starting sweep from {}".format(controller._z_progress_raw))
         # pause before moving to end
         time.sleep(0.25)
         controller.single_axis_move("z", end, update=100, immediate=True)
@@ -328,14 +330,14 @@ ImageGradmax={}, (z={})""".format(
         if controller.timer:
             p = controller.timer.get_interval()
             self.debug("controller timer period {}".format(p))
-            pz = controller.z_progress
+            pz = controller._z_progress_raw
 
             while 1:
                 src = self._load_source()
-                x = controller.z_progress
+                x = controller._z_progress_raw
                 if x != pz:
                     y = self._calculate_focus_measure(src, operator, roi)
-                    self.graph.add_datum((x, y), series=series)
+                    invoke_in_main_thread(self.graph.add_datum, (x, y), series=series)
 
                     focussteps.append(x)
                     fms.append(y)
@@ -356,8 +358,8 @@ ImageGradmax={}, (z={})""".format(
         if fms:
             sfms = smooth(fms)
             if sfms is not None:
-                self.graph.new_series(focussteps, sfms)
-                self.graph.redraw()
+                invoke_in_main_thread(self.graph.new_series,focussteps, sfms)
+                invoke_in_main_thread(self.graph.redraw)
 
                 fmi = focussteps[argmin(sfms)]
                 fma = focussteps[argmax(sfms)]
@@ -441,26 +443,27 @@ ImageGradmax={}, (z={})""".format(
         w = self.parameters.crop_width
         h = self.parameters.crop_height
 
-        cx, cy = self.canvas.get_center_rect_position(w, h)
+        evt = TEvent()
+        result = {}
+        invoke_in_main_thread(self._get_center_rect_position, evt, result, w, h)
+        if not evt.wait(timeout = 5):
+            raise RuntimeError("timed out getting center rect position")
 
-        #         cw, ch = self.canvas.outer_bounds
-        #         print w, h, cw, ch
-        #         cx = cw / 2. - w / 2.
-        #         cy = ch / 2. - h / 2.
-        #         cx = (cw - w) / 2.
-        #         cy = (ch - h) / 2.
-        #         cx = (640 * self.canvas.scaling - w) / 2
-        #         cy = (480 * self.canvas.scaling - h) / 2
+        cx, cy = result["cx"], result["cy"]
         roi = cx, cy, w, h
-
         return roi
 
-    def _add_focus_area_rect(self, cx, cy, w, h):
-        #         pl = self.canvas.padding_left
-        #         pb = self.canvas.padding_bottom
+    def _get_center_rect_position(self, evt, result, w, h):
+        try:
+            cx, cy = self.canvas.get_center_rect_position(w,h)
+            result["cx"] = cx
+            result["cy"] = cy
+        finally:
+            evt.set()
 
-        self.canvas.remove_item("croprect")
-        self.canvas.add_markup_rect(cx, cy, w, h, identifier="croprect")
+    def _add_focus_area_rect(self, cx, cy, w, h):
+        invoke_in_main_thread(self.canvas.remove_item, "croprect")
+        invoke_in_main_thread(self.canvas.add_markup_rect, cx, cy, w, h, identifier="croprect")
 
     def _autofocus_button_fired(self):
         if not self.autofocusing:

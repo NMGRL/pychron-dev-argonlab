@@ -19,6 +19,7 @@ from traitsui.api import Item, UItem, HGroup, VGroup, Spring
 
 from pychron.core.pychron_traits import BorderVGroup
 from pychron.core.ui.lcd_editor import LCDEditor
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.graph.plot_record import PlotRecord
 from pychron.graph.stream_graph import StreamStackedGraph
 from pychron.hardware import get_float
@@ -252,7 +253,12 @@ class BaseLakeShoreController(BaseCryoController):
         for i, v in enumerate(setpoints):
             if v is not None:
                 idx = i + 1
-                setattr(self, "setpoint{}".format(idx), v)
+                self.set_setpoint(v, idx)
+                invoke_in_main_thread(
+                    self.trait_set,
+                    trait_change_notify=False,
+                    **{"setpoint{}".format(idx): v}
+                )
         self._block(setpoints, delay, block)
 
     def _write_setpoint(self, v, output, **kw):

@@ -50,6 +50,7 @@ from pychron.core.ui.stage_component_editor import VideoComponentEditor
 from pychron.core.ui.thread import Thread as QThread
 from pychron.core.ui.thread import sleep
 from pychron.core.yaml import yload
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.image.video import Video, pil_save
 from pychron.mv.lumen_detector import LumenDetector
 from pychron.paths import paths
@@ -231,12 +232,14 @@ class VideoStageManager(StageManager):
                 src = self._get_preprocessed_src()
                 if src is not None:
                     targets = ld.find_targets(
-                        display_image,
+                        None,
                         src,
                         dim,
                         mask=mask_dim,
                         search={"start_offset_scalar": 1},
                     )
+                    if ld.last_target_frame is not None:
+                        invoke_in_main_thread(display_image.set_frame, ld.last_target_frame)
                     if targets:
                         t = time.time()
                         targets = [
@@ -588,31 +591,41 @@ class VideoStageManager(StageManager):
         return self.video.crop(frame, 0, 0, cropdim, cropdim)
 
     def _render_snapshot(self, path):
-        from chaco.plot_graphics_context import PlotGraphicsContext
+        evt = TEvent()
+        result = {}
+        invoke_in_main_thread(self._do_render_snapshot, evt, result, path)
+        if not evt.wait(timeout=15) or "ok" not in result:
+            raise RuntimeError("timed out rendering canvas snapshot")
 
-        c = self.canvas
-        p = None
-        was_visible = False
-        if not self.render_with_markup:
-            p = c.show_laser_position
-            c.show_laser_position = False
-            if self.points_programmer.is_visible:
-                c.hide_all()
-                was_visible = True
+    def _do_render_snapshot(self, evt, result, path):
+        try:
+            from chaco.plot_graphics_context import PlotGraphicsContext
 
-        gc = PlotGraphicsContext((int(c.outer_width), int(c.outer_height)))
-        c.do_layout()
-        gc.render_component(c)
-        # gc.save(path)
-        from pychron.core.helpers import save_gc
-
-        save_gc.save(gc, path)
-
-        if p is not None:
-            c.show_laser_position = p
-
-        if was_visible:
-            c.show_all()
+            c = self.canvas
+            p = None
+            was_visible = False
+            if not self.render_with_markup:
+                p = c.show_laser_position
+                c.show_laser_position = False
+                if self.points_programmer.is_visible:
+                    c.hide_all()
+                    was_visible = True
+        
+            gc = PlotGraphicsContext((int(c.outer_width), int(c.outer_height)))
+            c.do_layout()
+            gc.render_component(c)
+            from pychron.core.helpers import save_gc
+        
+            save_gc.save(gc, path)
+        
+            if p is not None:
+                c.show_laser_position = p
+        
+            if was_visible:
+                c.show_all()
+            result["ok"] = True
+        finally:
+            evt.set()
 
     def _start_recording(self, path, basename):
         self.info("start video recording {}".format(path))
@@ -1027,104 +1040,4 @@ class VideoStageManager(StageManager):
                 application=self.application,
             )
 
-            # def _zoom_calibration_manager_default(self):
-            #     if self.parent.mode != 'client':
-            #         from pychron.mv.zoom.zoom_calibration import ZoomCalibrationManager
-            #         return ZoomCalibrationManager(laser_manager=self.parent)
-
-
-# ===============================================================================
-# calcualte camera params
-# ===============================================================================
-# def _calculate_indicator_positions(self, shift=None):
-#        ccm = self.camera_calibration_manager
-#
-#        zoom = self.parent.zoom
-#        pychron, name = self.video_manager.snapshot(identifier=zoom)
-#        ccm.image_factory(pychron=pychron)
-#
-#        ccm.process_image()
-#        ccm.title = name
-#
-#        cond = Condition()
-#        ccm.cond = cond
-#        cond.acquire()
-#        do_later(ccm.edit_traits, view='snapshot_view')
-#        if shift:
-#            self.stage_controller.linear_move(*shift, block=False)
-#
-#        cond.wait()
-#        cond.release()
-#
-#    def _calculate_camera_parameters(self):
-#        ccm = self.camera_calibration_manager
-#        self._calculate_indicator_positions()
-#        if ccm.result:
-#            if self.calculate_offsets:
-#                rdxmm = 5
-#                rdymm = 5
-#
-#                x = self.stage_controller.x + rdxmm
-#                y = self.stage_controller.y + rdymm
-#                self.stage_controller.linear_move(x, y, block=True)
-#
-#                time.sleep(2)
-#
-#                polygons1 = ccm.polygons
-#                x = self.stage_controller.x - rdxmm
-#                y = self.stage_controller.y - rdymm
-#                self._calculate_indicator_positions(shift=(x, y))
-#
-#                polygons2 = ccm.polygons
-#
-#                # compare polygon sets
-#                # calculate pixel displacement
-#                dxpx = sum([sum([(pts1.x - pts2.x)
-#                                for pts1, pts2 in zip(p1.points, p2.points)]) / len(p1.points)
-#                                    for p1, p2 in zip(polygons1, polygons2)]) / len(polygons1)
-#                dypx = sum([sum([(pts1.y - pts2.y)
-#                                for pts1, pts2 in zip(p1.points, p2.points)]) / len(p1.points)
-#                                    for p1, p2 in zip(polygons1, polygons2)]) / len(polygons1)
-#
-#                # convert pixel displacement to mm using defined mapping
-#                dxmm = dxpx / self.pxpercmx
-#                dymm = dypx / self.pxpercmy
-#
-#                # calculate drive offset. ratio of request/actual
-#                try:
-#                    self.drive_xratio = rdxmm / dxmm
-#                    self.drive_yratio = rdymm / dymm
-#                except ZeroDivisionError:
-#                    self.drive_xratio = 100
-#
-#    def _calibration_manager_default(self):
-#
-# #        self.video.open(user = 'calibration')
-#        return CalibrationManager(parent = self,
-#                                  laser_manager = self.parent,
-#                               video_manager = self.video_manager,
-#                               )
-# ============= EOF ====================================
-#                adxs = []
-#                adys = []
-#                for p1, p2 in zip(polygons, polygons2):
-# #                    dxs = []
-# #                    dys = []
-# #                    for pts1, pts2 in zip(p1.points, p2.points):
-# #
-# #                        dx = pts1.x - pts2.x
-# #                        dy = pts1.y - pts2.y
-# #                        dxs.append(dx)
-# #                        dys.append(dy)
-# #                    dxs = [(pts1.x - pts2.x) for pts1, pts2 in zip(p1.points, p2.points)]
-# #                    dys = [(pts1.y - pts2.y) for pts1, pts2 in zip(p1.points, p2.points)]
-# #
-#                    adx = sum([(pts1.x - pts2.x) for pts1, pts2 in zip(p1.points, p2.points)]) / len(p1.points)
-#                    ady = sum([(pts1.y - pts2.y) for pts1, pts2 in zip(p1.points, p2.points)]) / len(p1.points)
-#
-# #                    adx = sum(dxs) / len(dxs)
-# #                    ady = sum(dys) / len(dys)
-#                    adxs.append(adx)
-#                    adys.append(ady)
-#                print 'xffset', sum(adxs) / len(adxs)
-#                print 'yffset', sum(adys) / len(adys)
+        

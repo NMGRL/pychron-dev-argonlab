@@ -59,10 +59,10 @@ class PatternExecutor(Patternable):
         self._alive = True
 
         if show:
-            self.show_pattern()
+            invoke_in_main_thread(self.show_pattern)
 
         if self.pattern:
-            self.pattern.clear_graph()
+            invoke_in_main_thread(self.pattern.clear_graph)
 
     def finish(self):
         if self.pattern and self.controller:
@@ -351,7 +351,7 @@ class PatternExecutor(Patternable):
         ld.custom_mask = pattern.custom_mask_radius
 
         osdp = sm.canvas.show_desired_position
-        sm.canvas.show_desired_position = False
+        invoke_in_main_thread(sm.canvas.trait_set, show_desired_position = False)
 
         st = time.time()
         self.debug("Pre seek delay {}".format(pattern.pre_seek_delay))
@@ -370,16 +370,19 @@ class PatternExecutor(Patternable):
         else:
             self._hill_climber(st, controller, pattern)
 
-        sm.canvas.show_desired_position = osdp
+        invoke_in_main_thread(sm.canvas.trait_set, show_desired_position = osdp)
 
         from pyface.gui import GUI
 
         GUI.invoke_later(self._info.dispose)
 
     def _dragonfly_peak(self, st, pattern, lm, controller):
-        # imgplot, imgplot2, imgplot3 = pattern.setup_execution_graph()
-        # imgplot, imgplot2 = pattern.setup_execution_graph()
-        imgplot, imgplot2 = pattern.setup_execution_graph(nplots=2)
+        evt = Event()
+        result = {}
+        invoke_in_main_thread(self._setup_dragonfly_graph, evt, result, pattern)
+        if not evt.wait(timeout=5) or "plots" not in result:
+            raise RuntimeError("failed to set up dragonfly execution graph")
+        imgplot, imgplot2 = result ["plots"]
         cx, cy = pattern.cx, pattern.cy
 
         sm = lm.stage_manager
@@ -391,7 +394,6 @@ class PatternExecutor(Patternable):
 
         set_data = imgplot.data.set_data
         set_data2 = imgplot2.data.set_data
-        # set_data3 = imgplot3.data.set_data
 
         duration = pattern.duration
         sat_threshold = pattern.saturation_threshold
@@ -406,22 +408,19 @@ class PatternExecutor(Patternable):
 
         point_gen = None
         cnt = 0
-        # peak = None
         oimg = sm.get_preprocessed_src()
         pos_img = zeros_like(oimg, dtype="int16")
         per_img = zeros_like(oimg, dtype="int16")
 
         img_h, img_w = pos_img.shape
-        # pcx, pcy = circle(img_h / 2, img_w / 2, pattern.perimeter_radius * pxpermm)
 
         color = 2**15 - 1
 
-        # perimeter_circle = _coords_inside_image(pcx, pcy, per_img.shape)
         perimeter_circle = disk(
             (img_h / 2, img_w / 2), pattern.perimeter_radius * pxpermm
         )
         per_img[perimeter_circle] = 50
-        set_data("imagedata", gray2rgb(per_img.astype(uint8)))
+        invoke_in_main_thread(set_data, "imagedata", gray2rgb(per_img.astype(uint8)))
 
         while time.time() - st < total_duration:
             if not self._alive:
@@ -445,14 +444,14 @@ class PatternExecutor(Patternable):
                 pt, peakcol, peakrow, peak_img, sat, src = args
 
                 sats.append(sat)
-                # src = gray2rgb(src).astype(uint8)
+            
                 if pt:
                     pts.append(pt)
                     # c = circle(peakrow, peakcol, 2)
                     # img[c] = (255, 0, 0)
                     # src[c] = (225, 0, 225)
 
-                set_data2("imagedata", src)
+                invoke_in_main_thread(set_data2, "imagedata", src)
 
                 sleep(update_period)
 
@@ -490,16 +489,6 @@ class PatternExecutor(Patternable):
 
             else:
                 point_gen = None
-
-                # # wait = True
-                # if npt is None:
-                #     block = total_duration - (time.time() - st) < duration
-                #     linear_move(cx, cy, source='recenter_dragonfly{}'.format(cnt), block=block,
-                #                 velocity=pattern.velocity,
-                #                 use_calibration=False)
-                #     pattern.position_str = 'Return to Center'
-                #     px, py = cx, cy
-                #     continue
 
                 try:
                     scalar = npt[2]
@@ -577,30 +566,37 @@ class PatternExecutor(Patternable):
 
                 ay, ax = py - cy, px - cx
 
-                # self.debug('position mm ax={},ay={}, pxpermm={}, w={}, h={}'.format(ax, ay, pxpermm, img_h, img_w))
-
                 ay, ax = int(-ay * pxpermm) + img_h / 2, int(ax * pxpermm) + img_w / 2
-                # self.debug('position pixel ax={},ay={}'.format(ax, ay))
 
                 pos_img -= 5
                 pos_img = pos_img.clip(0, color)
 
-                # cxx, cyy = circle(ay, ax, 2)
-                # c = _coords_inside_image(cxx, cyy, pos_img.shape)
                 c = disk((ay, ax), 2)
                 pos_img[c] = color - 60
                 nimg = (pos_img + per_img).astype(uint8)
 
-                set_data("imagedata", gray2rgb(nimg))
+                invoke_in_main_thread(set_data, "imagedata", gray2rgb(nimg))
 
                 cnt += 1
 
         self.debug("dragonfly complete")
         controller.block()
 
+    def _setup_dragonfly_graph(self, evt, result, pattern):
+        try: 
+            result["plots"] = pattern.setup_execution_graph(nplots=2)
+        finally:
+            evt.set()
+
     def _hill_climber(self, st, controller, pattern):
+        evt = Event()
+        result = {}
+        invoke_in_main_thread(self._setup_hill_climber_graph, evt, result, pattern)
+        if not evt.wait(timeout=5) or "plots" not in result:
+            raise RuntimeError("failed to set up hill climber execution graph")
+        imgplot, cp = result["plots"]
+
         g = pattern.execution_graph
-        imgplot, cp = pattern.setup_execution_graph()
 
         cx, cy = pattern.cx, pattern.cy
 
@@ -617,7 +613,6 @@ class PatternExecutor(Patternable):
         pattern.perimeter_radius *= sm.pxpermm
 
         avg_sat_score = -1
-        # current_x, current_y =None, None
         for i, pt in enumerate(pattern.point_generator()):
             update_plot = True
 
@@ -629,10 +624,7 @@ class PatternExecutor(Patternable):
             if time.time() - st > total_duration:
                 break
 
-            # use_update_point = False
             if avg_sat_score < sat_threshold:
-                # use_update_point = False
-                # current_x, current_y = x, y
                 linear_move(
                     ax,
                     ay,
@@ -661,7 +653,7 @@ class PatternExecutor(Patternable):
                 density_scores.append(score_density)
                 saturation_scores.append(score_saturation)
 
-                set_data("imagedata", img)
+                invoke_in_main_thread(set_data, "imagedata", img)
                 ts.append(time.time() - st)
                 time.sleep(0.1)
 
@@ -700,15 +692,13 @@ class PatternExecutor(Patternable):
                 self.debug("Modified Density Score: {:0.3f}".format(score))
                 self.debug("Saturation. AVG:{:0.3f}".format(avg_sat_score))
                 if update_plot:
-                    cp.add_point((x, y))
-                    g.add_datum((x, y), plotid=0)
+                    invoke_in_main_thread(self._add_hill_climber_point, cp, g, x, y)
 
                 t = time.time() - st
-                g.add_datum((t, avg_score), plotid=1)
+                invoke_in_main_thread(g.add_datum, (t, avg_score), plotid=1)
 
-                # g.add_bulk_data(ts, density_scores, plotid=1, series=1)
-
-                g.add_datum(
+                invoke_in_main_thread(
+                    g.add_datum,
                     (t, score),
                     ypadding="0.1",
                     ymin_anchor=-0.1,
@@ -718,5 +708,15 @@ class PatternExecutor(Patternable):
 
             update_axes()
 
+    def _setup_hill_climber_graph(self, evt, result, pattern):
+        try:
+            result["plots"] = pattern.setup_execution_graph()
+        finally: 
+            evt.set()
+
+    def _add_hill_climber_point(self, cp, g, x, y):
+        cp.add_point((x, y))
+        g.add_datum((x, y), plotid=0)
+    
 
 # ============= EOF =============================================

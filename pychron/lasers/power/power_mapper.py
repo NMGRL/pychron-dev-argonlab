@@ -23,9 +23,11 @@ from traits.api import Any, Int, Instance, Event
 from pychron.loggable import Loggable
 
 # ============= standard library imports ========================
+from threading import Event as TEvent
 # ============= local library imports  ==========================
 from numpy import exp, mgrid, linspace, hstack, array, rot90
 from pychron.core.helpers.datetime_tools import generate_datestamp
+from pychron.core.ui.gui import invoke_in_main_thread
 from pychron.managers.data_managers.h5_data_manager import H5DataManager
 from pychron.consumer_mixin import ConsumerMixin
 import random
@@ -37,7 +39,7 @@ from pychron.paths import paths
 from six.moves import range
 
 
-# from pychron.core.ui.gui import invoke_in_main_thread
+
 
 
 def power_generator(nsteps):
@@ -156,52 +158,47 @@ class PowerMapper(Loggable, ConsumerMixin):
             self.warning_dialog("No Laser Manager available")
 
     def _add_data(self, data):
-        #        def _refresh_data(v):
         tab, x, y, col, row, mag, sid = data
 
-        #        self.debug('{} {} {} {} {}'.format(*v[1:]))
         self._write_datum(tab, x, y, col, row, mag)
-        self.graph.add_datum((x, mag), series=sid)
+        invoke_in_main_thread(self.graph.add_datum, (x, mag), series=sid)
 
         self._xs = hstack((self._xs, x))
         self._ys = hstack((self._ys, y))
         self._zs = hstack((self._zs, mag))
 
-        #         xl, xh = self._bounds[:2]
-        #         yl, yh = self._bounds[2:]
-
         if col % 10 == 0 and row:
-            cg = self.contour_graph
             xx = self._xs
             yy = self._ys
             z = self._zs
-
-            #             print 'xx-----', xx
-            #             print 'yy-----', yy
             zd = griddata(
                 (xx, yy),
                 z,
                 self.area,
-                #                        method='cubic',
                 fill_value=0,
             )
 
             zd = rot90(zd, k=2)
-            #             zd = zd.T
-            #             print zd
-            if not list(cg.plots[0].plots.keys()):
-                cg.new_series(
-                    z=zd,
-                    xbounds=(-self._padding, self._padding),
-                    ybounds=(-self._padding, self._padding),
-                    #                              xbounds=(xl, xh),
-                    #                              ybounds=(yl, yh),
-                    style="contour",
-                )
-            else:
-                cg.plots[0].data.set_data("z0", zd)
+            invoke_in_main_thread(self._update_contour, zd)
 
-    #        invoke_in_main_thread(_refresh_data, data)
+    def _update_contour(self, zd):
+        cg = self.contour_graph
+        if not list(cg.plots[0].plots.keys()):
+            cg.new_series(
+                z=zd,
+                xbounds=(-self._padding, self._padding),
+                ybounds=(-self._padding, self._padding),
+                style="contour",
+            )
+        else:
+            cg.plots[0].data.set_data("z0", zd)
+
+    def _new_scan_series(self, evt, result):
+        try:
+            self.graph.new_series(color="black")
+            result["sid"] = len(self.graph.series[0]) - 1
+        finally:
+            evt.set()
 
     def _continuous_scan(self, cx, cy, padding, step_len):
         self.info("doing continuous scan")
@@ -212,6 +209,9 @@ class PowerMapper(Loggable, ConsumerMixin):
         lm = self.laser_manager
         sm = lm.stage_manager
         apm = lm.get_device("analog_power_meter")
+       
+
+
         self._xs, self._ys, self._zs = array([]), array([]), array([])
         tab = self._new_data_table(padding)
 
@@ -235,32 +235,25 @@ class PowerMapper(Loggable, ConsumerMixin):
             # move to start position
             sc.linear_move(sx, ny, block=True)
 
-            self.graph.new_series(color="black")
-            sid = len(self.graph.series[0]) - 1
+            evt = TEvent()
+            result = {}
+            invoke_in_main_thread(self._new_scan_series, evt, result)
+            if not evt.wait(timeout=5) or "sid" not in result:
+                raise RuntimeError("timed out creating power map series")
+            sid = result["sid"]
 
             # move to start position
             self.info("move to end {},{}".format(ex, ny))
             sc.linear_move(ex, ny, block=False, velocity=0.1, immediate=True)
             time.sleep(0.1)
-            #             if lm.simulation:
-            #                 n = 21
-            #                 r = random.random()
-            #                 if r < 0.25:
-            #                     n += 1
-            #                 elif r > 0.75:
-            #                     n -= 1
-            #                 for i in range(n):
-            #                     x, y = i * 0.1 - 1, ny
-            #                     mag = row + random.random()
-            #                     self.add_consumable((tab, x, y, i, row, mag, sid))
-            #             else:
+
             xaxis = sc.axes["x"]
             yaxis = sc.axes["y"]
             col = 0
             p = sc.timer.get_interval()
+
             self.debug("power map timer {}".format(p))
             while 1:
-                #                self.debug('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ power map iteration {}'.format(p))
                 time.sleep(p)
                 x, y = xaxis.position - cx, yaxis.position - cy
                 if apm:
@@ -268,7 +261,6 @@ class PowerMapper(Loggable, ConsumerMixin):
                 else:
                     mag = row + random.random()
 
-                #                self.debug('x={}, y={}'.format(x, y))
                 v = (tab, x, y, col, row, mag, sid)
                 if not sc.timer.isActive():
                     self.debug("%%%%%%%%%%%%%%%%%%%%%% timer not active")
@@ -296,7 +288,7 @@ class PowerMapper(Loggable, ConsumerMixin):
         #        ysteps = xrange(-nsteps, nsteps + 1)
         ysteps = range(nsteps + 1, -nsteps, -1)
 
-        self.graph.set_x_limits(-padding, padding, pad="0.1")
+        invoke_in_main_thread(self.graph.set_x_limits, -padding, padding, pad="0.1")
 
         def gen():
             for j, yi in enumerate(ysteps):
